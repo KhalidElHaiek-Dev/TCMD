@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TCMD.Api/TCMD.Api.csproj" />
+    <Project Path="src/TCMD.Application/TCMD.Application.csproj" />
+    <Project Path="src/TCMD.Domain/TCMD.Domain.csproj" />
+    <Project Path="src/TCMD.Infrastructure/TCMD.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TCMD.DomainTests/TCMD.DomainTests.csproj" />
+    <Project Path="tests/TCMD.IntegrationTests/TCMD.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

@@ -75,6 +75,21 @@ EF starts `TCMD.Api` for design-time commands, so migrations use the same config
 dotnet ef database update --project src/TCMD.Infrastructure --startup-project src/TCMD.Api
 ```
 
+## Initialize the first administrator
+
+After applying migrations, set these values with user-secrets for one startup only. Do not commit them:
+
+```powershell
+dotnet user-secrets set --project src/TCMD.Api "BootstrapAdmin:Enabled" "true"
+dotnet user-secrets set --project src/TCMD.Api "BootstrapAdmin:UserName" "admin"
+dotnet user-secrets set --project src/TCMD.Api "BootstrapAdmin:DisplayName" "Initial Administrator"
+dotnet user-secrets set --project src/TCMD.Api "BootstrapAdmin:Password" "choose-a-password-with-letters-and-digits"
+```
+
+Start the API once. TCMD creates the Administrator, Staff, and Instructor roles and exactly one active Administrator only when no staff accounts exist. Remove `BootstrapAdmin:Enabled` and `BootstrapAdmin:Password` immediately after a successful startup. In deployed environments, provide the same values through protected environment variables instead.
+
+`POST /api/auth/login` accepts `userName` and `password` and creates an HTTP-only cookie session. `POST /api/auth/logout` ends the current authenticated session. Health, OpenAPI, and login are public; all other endpoints require sign-in.
+
 To select a database explicitly for one non-secret local command, pass its connection string to EF:
 
 ```powershell

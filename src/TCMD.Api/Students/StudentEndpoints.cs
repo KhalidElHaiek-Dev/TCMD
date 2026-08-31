@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
+using TCMD.Api.Authentication;
 using TCMD.Application.Students;
 
 namespace TCMD.Api.Students;
@@ -9,8 +10,8 @@ public static class StudentEndpoints
     public static IEndpointRouteBuilder MapStudentEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/students").WithTags("Students");
-        group.MapPost("/", RegisterAsync);
-        group.MapGet("/{id:guid}", GetByIdAsync);
+        group.MapPost("/", RegisterAsync).RequireAuthorization(TcmdPolicies.OperationalStaff);
+        group.MapGet("/{id:guid}", GetByIdAsync).RequireAuthorization(TcmdPolicies.OperationalStaff);
         return endpoints;
     }
 

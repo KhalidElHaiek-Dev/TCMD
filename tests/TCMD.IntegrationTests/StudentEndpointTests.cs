@@ -10,7 +10,7 @@ public sealed class StudentEndpointTests(TcmdApiFactory factory)
     [Fact]
     public async Task RegisterThenGet_WithValidData_ReturnsPersistedStudentAndGeneratedNumber()
     {
-        using var client = factory.CreateClient();
+        using var client = await AuthenticatedClient.CreateAsync(factory);
         var uniquePhone = $"+2126{Random.Shared.NextInt64(100000000, 999999999)}";
 
         using var createResponse = await client.PostAsJsonAsync("/api/students", new
@@ -36,7 +36,7 @@ public sealed class StudentEndpointTests(TcmdApiFactory factory)
     [Fact]
     public async Task Register_WithMissingRequiredData_ReturnsValidationProblemDetails()
     {
-        using var client = factory.CreateClient();
+        using var client = await AuthenticatedClient.CreateAsync(factory);
 
         using var response = await client.PostAsJsonAsync("/api/students", new
         {
@@ -56,7 +56,7 @@ public sealed class StudentEndpointTests(TcmdApiFactory factory)
     [Fact]
     public async Task Get_WhenStudentDoesNotExist_ReturnsProblemDetails()
     {
-        using var client = factory.CreateClient();
+        using var client = await AuthenticatedClient.CreateAsync(factory);
 
         using var response = await client.GetAsync($"/api/students/{Guid.NewGuid()}");
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();

@@ -90,6 +90,8 @@ Start the API once. TCMD creates the Administrator, Staff, and Instructor roles 
 
 `POST /api/auth/login` accepts `userName` and `password` and creates an HTTP-only cookie session. `POST /api/auth/logout` ends the current authenticated session. Health, OpenAPI, and login are public; all other endpoints require sign-in.
 
+Administrators manage staff access through `/api/staff-accounts`: `GET /` lists accounts, `GET /{id}` retrieves one, and `POST /` creates an active account with exactly one approved role. `PATCH /{id}/active` activates or deactivates an account, `PATCH /{id}/role` changes its single role, and `POST /{id}/password` replaces its password. Staff and Instructor accounts cannot use these endpoints. Deactivation, role changes, and password replacement invalidate the affected user's existing session. TCMD rejects self-deactivation and any operation that would leave no active Administrator.
+
 To select a database explicitly for one non-secret local command, pass its connection string to EF:
 
 ```powershell

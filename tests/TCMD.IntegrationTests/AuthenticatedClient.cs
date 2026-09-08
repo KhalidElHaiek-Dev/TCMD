@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using TCMD.Api.Authentication;
 using TCMD.Infrastructure.Identity;
 using TCMD.Infrastructure.Persistence;
 
@@ -12,6 +13,7 @@ internal static class AuthenticatedClient
 {
     public static async Task<HttpClient> CreateAsync(TcmdApiFactory factory, string role = "Staff")
     {
+        await EnsureApprovedRolesAsync(factory);
         var (userName, password) = await CreateAccountAsync(factory, role, true);
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
         var response = await client.PostAsJsonAsync("/api/auth/login", new { userName, password });
@@ -40,5 +42,25 @@ internal static class AuthenticatedClient
         await db.UserRoles.ExecuteDeleteAsync();
         await db.Users.ExecuteDeleteAsync();
         await db.Roles.ExecuteDeleteAsync();
+    }
+
+    public static async Task<Guid> FindUserIdAsync(TcmdApiFactory factory, string userName)
+    {
+        using var scope = factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<StaffUser>>();
+        return (await users.FindByNameAsync(userName))!.Id;
+    }
+
+    private static async Task EnsureApprovedRolesAsync(TcmdApiFactory factory)
+    {
+        using var scope = factory.Services.CreateScope();
+        var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+        foreach (var role in TcmdPolicies.Roles)
+        {
+            if (!await roles.RoleExistsAsync(role))
+            {
+                Assert.True((await roles.CreateAsync(new IdentityRole<Guid>(role))).Succeeded);
+            }
+        }
     }
 }

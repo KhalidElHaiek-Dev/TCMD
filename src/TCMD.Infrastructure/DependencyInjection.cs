@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TCMD.Application.Students;
+using TCMD.Application.StaffAccounts;
+using TCMD.Infrastructure.Identity;
 using TCMD.Infrastructure.Persistence;
 using TCMD.Infrastructure.Students;
 
@@ -14,6 +16,7 @@ public static class DependencyInjection
         services.AddHealthChecks().AddDbContextCheck<TcmdDbContext>("database");
         services.AddScoped<IStudentStore, EfStudentStore>();
         services.AddScoped<IStudentNumberGenerator, SqlStudentNumberGenerator>();
+        services.AddScoped<IStaffAccountStore, IdentityStaffAccountStore>();
         return services;
     }
 }

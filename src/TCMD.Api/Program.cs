@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using TCMD.Api.Authentication;
 using TCMD.Api.Students;
+using TCMD.Api.StaffAccounts;
 using TCMD.Application.Students;
+using TCMD.Application.StaffAccounts;
 using TCMD.Infrastructure;
 using TCMD.Infrastructure.Identity;
 using TCMD.Infrastructure.Persistence;
@@ -24,6 +26,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<RegisterStudent>();
 builder.Services.AddScoped<GetStudentById>();
+builder.Services.AddScoped<StaffAccountAdministration>();
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddIdentityCore<StaffUser>(options =>
@@ -39,6 +42,7 @@ builder.Services.AddIdentityCore<StaffUser>(options =>
 })
 .AddRoles<IdentityRole<Guid>>()
 .AddEntityFrameworkStores<TcmdDbContext>()
+.AddDefaultTokenProviders()
 .AddSignInManager();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
 builder.Services.ConfigureApplicationCookie(options =>
@@ -65,6 +69,7 @@ builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser().Build();
     options.AddPolicy(TcmdPolicies.OperationalStaff, policy => policy.RequireRole("Administrator", "Staff"));
+    options.AddPolicy(TcmdPolicies.Administrators, policy => policy.RequireRole("Administrator"));
 });
 
 var app = builder.Build();
@@ -83,6 +88,7 @@ app.MapOpenApi().AllowAnonymous();
 app.MapHealthChecks("/health", new HealthCheckOptions { ResponseWriter = WriteHealthResponseAsync }).AllowAnonymous();
 app.MapAuthenticationEndpoints();
 app.MapStudentEndpoints();
+app.MapStaffAccountEndpoints();
 app.MapFallback(() => Results.NotFound()).AllowAnonymous();
 
 app.Run();

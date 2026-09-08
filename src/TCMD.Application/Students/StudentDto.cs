@@ -10,7 +10,8 @@ public sealed record StudentDto(
     string? Email,
     bool IsActive,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset LastUpdatedAtUtc)
+    DateTimeOffset LastUpdatedAtUtc,
+    byte[] RowVersion)
 {
     public static StudentDto From(Student student) => new(
         student.Id,
@@ -20,5 +21,6 @@ public sealed record StudentDto(
         student.Email,
         student.IsActive,
         student.CreatedAtUtc,
-        student.LastUpdatedAtUtc);
+        student.LastUpdatedAtUtc,
+        student.RowVersion ?? []);
 }

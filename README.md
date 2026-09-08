@@ -4,7 +4,15 @@ TCMD stands for **Training Center Management Dashboard**. It is an internal web 
 
 ## Current status
 
-Milestone 2 preserves the executable Milestone 1 foundation and adds the first student-management vertical slice. A student can be registered and retrieved by ID through the API. Authentication and all other student operations remain outside this milestone.
+Milestone 4 completes standalone Student management: authorized operational staff can register, retrieve, list, search, update, and deactivate students with SQL Server optimistic-concurrency protection. The implemented history is:
+
+- Milestone 1: executable API, SQL Server, migrations, health, OpenAPI, and integration-test foundation;
+- Milestone 2: Student registration and retrieval vertical slice;
+- Milestone 3A: ASP.NET Core Identity cookie authentication, roles, bootstrap administrator, and protected endpoints;
+- Milestone 3B: Administrator-only staff-account administration; and
+- Milestone 4: standalone Student list/search, update, deactivation, and rowversion concurrency handling.
+
+Instructor, course, group, enrollment, session, attendance, and browser-interface features remain future milestones.
 
 ## Solution structure
 
@@ -117,7 +125,12 @@ Use the listening URL printed by ASP.NET Core:
 - `GET /health` reports overall API health and the named `database` connectivity check.
 - `GET /openapi/v1.json` returns the generated OpenAPI document.
 - `POST /api/students` registers a student from `fullName`, required `phoneNumber`, and optional `email`; it returns `201 Created` and a generated student number.
+- `GET /api/students` lists all students and accepts optional `search` and `isActive=true|false` query parameters.
 - `GET /api/students/{id}` returns the registered student or `404 Not Found`.
+- `PUT /api/students/{id}` updates basic details using the current base64 `rowVersion` and returns `409 Conflict` for a stale version.
+- `POST /api/students/{id}/deactivate` marks a student inactive using the current base64 `rowVersion`; repeating the operation is safe and does not create another update.
+
+Student representations include a base64 `rowVersion`. Send that value unchanged when updating or deactivating the student. Administrator and Staff accounts can use these endpoints. Instructor accounts cannot use standalone Student endpoints in V1 because assigned-group access cannot be verified until group membership exists.
 
 Unknown routes and unhandled API errors use `ProblemDetails` JSON and include a request `traceId` for troubleshooting.
 

@@ -18,6 +18,6 @@ internal sealed class StudentConfiguration : IEntityTypeConfiguration<Student>
         builder.Property(student => student.IsActive).IsRequired();
         builder.Property(student => student.CreatedAtUtc).IsRequired();
         builder.Property(student => student.LastUpdatedAtUtc).IsRequired();
-        builder.Property<byte[]>("RowVersion").IsRowVersion();
+        builder.Property(student => student.RowVersion).IsRowVersion();
     }
 }

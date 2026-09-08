@@ -32,6 +32,7 @@ public sealed class Student
     public bool IsActive { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset LastUpdatedAtUtc { get; private set; }
+    public byte[]? RowVersion { get; private set; }
 
     public static Student Register(
         string studentNumber,
@@ -46,6 +47,34 @@ public sealed class Student
         }
 
         return new Student(Guid.NewGuid(), studentNumber, fullName, phoneNumber, email, createdAtUtc);
+    }
+
+    public void UpdateDetails(
+        string fullName,
+        string phoneNumber,
+        string? email,
+        DateTimeOffset updatedAtUtc)
+    {
+        var normalizedFullName = RequireValue(fullName, nameof(fullName));
+        var normalizedPhoneNumber = RequireValue(phoneNumber, nameof(phoneNumber));
+        var normalizedEmail = NormalizeOptional(email);
+
+        FullName = normalizedFullName;
+        PhoneNumber = normalizedPhoneNumber;
+        Email = normalizedEmail;
+        LastUpdatedAtUtc = updatedAtUtc;
+    }
+
+    public bool Deactivate(DateTimeOffset updatedAtUtc)
+    {
+        if (!IsActive)
+        {
+            return false;
+        }
+
+        IsActive = false;
+        LastUpdatedAtUtc = updatedAtUtc;
+        return true;
     }
 
     private static string RequireValue(string value, string parameterName)

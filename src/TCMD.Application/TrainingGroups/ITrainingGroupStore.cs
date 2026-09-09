@@ -16,6 +16,8 @@ public interface ITrainingGroupStore
     Task<TrainingGroupReference> GetInstructorReferenceAsync(Guid id, CancellationToken cancellationToken);
     Task<bool> DuplicateExistsAsync(Guid courseId, string name, DateOnly plannedStartDate, Guid? excludingId,
         CancellationToken cancellationToken);
+    Task<bool> HasNonCancelledSessionsOutsideRangeAsync(Guid groupId, DateOnly startDate, DateOnly endDate,
+        CancellationToken cancellationToken);
     Task<TrainingGroupStoreSaveStatus> SaveAsync(TrainingGroup group, byte[] expectedRowVersion,
         CancellationToken cancellationToken);
 }

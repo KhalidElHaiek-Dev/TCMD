@@ -171,12 +171,15 @@ Completion criteria:
 
 Goal: schedule and maintain the meetings delivered by each training group.
 
-Planned deliverables:
+Delivered behavior:
 
-- session scheduling, update, and cancellation;
+- session scheduling, retrieval, update, explicit completion, and cancellation;
 - session lists by group;
-- group-date validation; and
-- instructor restrictions to assigned session views.
+- group-date validation and protection against excluding non-cancelled sessions;
+- optimistic concurrency, authorization, domain, and SQL-backed integration tests; and
+- Operational Staff-only access until account-to-Instructor linkage supports safe assigned-session views.
+
+Assigned-Instructor session views remain deferred. Milestone 9 does not add attendance, automatic completion, conflict detection, recurring schedules, or browser UI.
 
 ## Milestone 10: Attendance
 

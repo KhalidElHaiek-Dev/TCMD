@@ -6,6 +6,7 @@ using TCMD.Domain.Enrollments;
 using TCMD.Domain.Instructors;
 using TCMD.Domain.Students;
 using TCMD.Domain.TrainingGroups;
+using TCMD.Domain.TrainingSessions;
 using TCMD.Infrastructure.Identity;
 
 namespace TCMD.Infrastructure.Persistence;
@@ -18,6 +19,7 @@ public sealed class TcmdDbContext(DbContextOptions<TcmdDbContext> options)
     public DbSet<Student> Students => Set<Student>();
     public DbSet<Instructor> Instructors => Set<Instructor>();
     public DbSet<TrainingGroup> TrainingGroups => Set<TrainingGroup>();
+    public DbSet<TrainingSession> TrainingSessions => Set<TrainingSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -101,6 +101,7 @@ public static class TrainingGroupEndpoints
         TrainingGroupMutationStatus.InstructorInactive => Results.Problem(statusCode: 409, title: "An inactive instructor cannot be selected for this operation."),
         TrainingGroupMutationStatus.InstructorRequired => Results.Problem(statusCode: 409, title: "A primary instructor is required before activation."),
         TrainingGroupMutationStatus.ProhibitedChange => Results.Problem(statusCode: 409, title: "The requested changes are not allowed for the group's current status."),
+        TrainingGroupMutationStatus.SessionOutsideProposedDateRange => Results.Problem(statusCode: 409, title: "The proposed dates would leave a non-cancelled session outside the training group's date range."),
         TrainingGroupMutationStatus.InvalidStatusTransition => Results.Problem(statusCode: 409, title: "The requested group status transition is not allowed."),
         TrainingGroupMutationStatus.ConcurrencyConflict => Results.Problem(statusCode: 409, title: "Training group was changed by another user. Reload and try again."),
         TrainingGroupMutationStatus.DuplicateGroup => Results.Problem(statusCode: 409, title: "A group with the same course, name, and planned start date already exists."),

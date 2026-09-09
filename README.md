@@ -4,7 +4,7 @@ TCMD stands for **Training Center Management Dashboard**. It is an internal web 
 
 ## Current status
 
-Milestone 8 completes Student Enrollment management: authorized operational staff can enroll active students in Planned or Active groups, view membership from either side, complete or withdraw enrollments, and reactivate withdrawn memberships without losing history. The implemented history is:
+Milestone 9 completes Training Session management: authorized operational staff can schedule, retrieve, list, update, complete, and cancel group sessions while preserving history and enforcing group date ranges. The implemented history is:
 
 - Milestone 1: executable API, SQL Server, migrations, health, OpenAPI, and integration-test foundation;
 - Milestone 2: Student registration and retrieval vertical slice;
@@ -15,8 +15,9 @@ Milestone 8 completes Student Enrollment management: authorized operational staf
 - Milestone 6: standalone Course creation, list/search, retrieval, update, deactivation, code uniqueness, and rowversion concurrency handling; and
 - Milestone 7: standalone Training Group creation, list/search/filtering, retrieval, detail and assignment updates, activation, completion, cancellation, relationship validation, uniqueness, and rowversion concurrency handling.
 - Milestone 8: Enrollment creation, Student and Training Group membership views, status management, withdrawn-membership reactivation, permanent pair uniqueness, and rowversion concurrency handling.
+- Milestone 9: Training Session scheduling, chronological group views, detail updates, explicit completion, cancellation, group-range protection, and rowversion concurrency handling.
 
-Session, attendance, staff-account linking, Instructor self-service, and browser-interface features remain later milestones.
+Attendance, staff-account linking, Instructor self-service, assigned-Instructor session views, and browser-interface features remain later milestones.
 
 ## Solution structure
 
@@ -169,6 +170,8 @@ Training Group statuses are Planned, Active, Completed, and Cancelled. Completed
 - `POST /api/enrollments/{id}/reactivate` reactivates a Withdrawn Enrollment when its Student is active and group is Planned or Active.
 
 Enrollment statuses are Active, Completed, and Withdrawn. Each Student and Training Group pair has exactly one permanent Enrollment record. Withdrawal and reactivation preserve its identifier, original system-assigned UTC enrollment date, creation timestamp, and future attendance relationship. Completing or cancelling a Training Group does not automatically change Enrollments. Enrollment status commands require the current base64 `rowVersion`; stale changes return `409 Conflict`. Administrator and Staff accounts can use these endpoints; Instructor accounts cannot use the Milestone 8 slice.
+
+Training Sessions use `POST` and `GET /api/training-groups/{groupId}/sessions` and `GET`, `PUT`, `POST /complete`, and `POST /cancel` under `/api/training-sessions/{id}`. Scheduled date and times use `DateOnly`/`TimeOnly`; location is optional plain text up to 500 characters. Sessions may be created or edited only while their group is Planned or Active, but explicit completion and cancellation remain available as historical corrections after the parent group becomes terminal. Completed and Cancelled sessions are terminal and retained. Exact duplicates are allowed because scheduling-conflict detection is deferred. Mutations use SQL Server `rowversion`. All Milestone 9 endpoints are limited to Administrator and Staff accounts; assigned-Instructor reads are deferred until staff accounts can be linked safely to Instructor records.
 
 Unknown routes and unhandled API errors use `ProblemDetails` JSON and include a request `traceId` for troubleshooting.
 

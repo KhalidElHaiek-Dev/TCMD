@@ -185,6 +185,14 @@ Rules:
 - A cancelled session remains in history.
 - A session date must fall within the group's planned dates.
 - Statuses are Scheduled, Completed, and Cancelled.
+- Sessions use a `Guid` identifier. Session date and times are stored separately as training-center-local `DateOnly` and `TimeOnly` values; duration is derived and not persisted.
+- Sessions may be created and have ordinary details updated only while Scheduled and while their group is Planned or Active. V1 deliberately has no wall-clock restriction on correcting a past scheduled time.
+- Scheduled sessions may be explicitly Completed or Cancelled even after their group becomes terminal. Completed and Cancelled are terminal; same-state commands are idempotent.
+- Location is trimmed optional text limited to 500 characters. Blank text is stored as null.
+- A session inherits its effective instructor from its Training Group and does not store a separate instructor identifier.
+- Exact duplicate sessions are allowed because schedule-conflict detection is deferred.
+- Training Session mutations use SQL Server `rowversion`.
+- A Training Group date change cannot exclude a Scheduled or Completed session. Cancelled sessions do not block date corrections.
 - Structured rooms and schedule-conflict checks are deferred.
 
 ## AttendanceRecord

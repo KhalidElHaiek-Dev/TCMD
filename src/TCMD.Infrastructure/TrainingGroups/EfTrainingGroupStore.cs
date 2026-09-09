@@ -2,6 +2,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using TCMD.Application.TrainingGroups;
 using TCMD.Domain.TrainingGroups;
+using TCMD.Domain.TrainingSessions;
 using TCMD.Infrastructure.Persistence;
 
 namespace TCMD.Infrastructure.TrainingGroups;
@@ -52,6 +53,11 @@ internal sealed class EfTrainingGroupStore(TcmdDbContext dbContext) : ITrainingG
         CancellationToken cancellationToken) => dbContext.TrainingGroups.AsNoTracking().AnyAsync(group =>
             group.CourseId == courseId && group.Name == name && group.PlannedStartDate == plannedStartDate &&
             (excludingId == null || group.Id != excludingId), cancellationToken);
+
+    public Task<bool> HasNonCancelledSessionsOutsideRangeAsync(Guid groupId, DateOnly startDate, DateOnly endDate,
+        CancellationToken cancellationToken) => dbContext.TrainingSessions.AsNoTracking().AnyAsync(session =>
+            session.TrainingGroupId == groupId && session.Status != TrainingSessionStatus.Cancelled &&
+            (session.SessionDate < startDate || session.SessionDate > endDate), cancellationToken);
 
     public async Task<TrainingGroupStoreSaveStatus> SaveAsync(TrainingGroup group, byte[] expectedRowVersion,
         CancellationToken cancellationToken)

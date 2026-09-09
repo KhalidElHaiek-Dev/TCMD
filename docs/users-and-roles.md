@@ -52,6 +52,8 @@ An instructor has limited access related to assigned work and can:
 
 Instructors cannot update student details. They cannot create, reschedule, or cancel sessions. They cannot see groups or students that are not assigned to them.
 
+Milestone 9 does not yet expose session reads to authenticated Instructor-role accounts. The optional StaffUser-to-Instructor link is not implemented, so all current Training Session endpoints require the Operational Staff policy. Assigned-session reads remain deferred until that link can enforce the approved restriction without exposing other instructors' records.
+
 ## Staff accounts and instructor records
 
 A staff account represents permission to sign in. An instructor record represents a person who teaches.

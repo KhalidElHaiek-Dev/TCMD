@@ -78,11 +78,15 @@ New enrollment and withdrawn-enrollment reactivation require an active student a
 3. TCMD checks that the end is later than the start.
 4. TCMD checks that the session date falls within the group's planned dates.
 5. TCMD creates the scheduled session with an optional plain-text location.
-6. An administrator or staff member can update or cancel it. Instructors can only view their assigned sessions.
+6. An administrator or staff member can update, explicitly complete, or cancel it.
 
 V1 does not detect instructor, room, or group scheduling conflicts. Structured room management and conflict detection are deferred.
 
-A cancelled session remains in history and cannot receive normal attendance records.
+A session may be created or edited only while its group is Planned or Active. There is no server-clock restriction on correcting a Scheduled session whose nominal time has passed. Explicit completion and cancellation remain available for a Scheduled session after its parent group becomes Completed or Cancelled. Completed and Cancelled sessions are terminal, remain in history, and same-state commands are idempotent. A cancelled session cannot receive normal attendance records.
+
+Session date/time uses separate training-center-local date and time values. Location is optional trimmed text up to 500 characters. Duration is derived, exact duplicates are allowed, and the effective instructor is inherited from the Training Group. When group dates change, every non-cancelled session must remain inside the proposed inclusive range; cancelled sessions do not block the correction.
+
+Milestone 9 endpoints are restricted to administrators and staff. Assigned-Instructor reads are deferred until account-to-Instructor linkage can enforce them safely.
 
 ## 8. Record attendance
 

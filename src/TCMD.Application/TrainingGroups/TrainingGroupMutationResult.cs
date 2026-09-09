@@ -5,7 +5,8 @@ namespace TCMD.Application.TrainingGroups;
 public enum TrainingGroupMutationStatus
 {
     Success, NotFound, CourseNotFound, CourseInactive, InstructorNotFound, InstructorInactive,
-    InstructorRequired, ProhibitedChange, InvalidStatusTransition, ConcurrencyConflict, DuplicateGroup
+    InstructorRequired, ProhibitedChange, SessionOutsideProposedDateRange, InvalidStatusTransition,
+    ConcurrencyConflict, DuplicateGroup
 }
 
 public sealed record TrainingGroupMutationResult(TrainingGroupMutationStatus Status, TrainingGroupDto? Group)

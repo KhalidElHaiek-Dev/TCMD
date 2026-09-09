@@ -28,6 +28,10 @@ public sealed class UpdateTrainingGroup(ITrainingGroupStore store, TimeProvider 
         if (error is not null) return TrainingGroupMutationResult.Error(error.Value);
         if (await store.DuplicateExistsAsync(request.CourseId, request.Name.Trim(), request.PlannedStartDate, id, cancellationToken))
             return TrainingGroupMutationResult.Error(TrainingGroupMutationStatus.DuplicateGroup);
+        if ((group.PlannedStartDate != request.PlannedStartDate || group.PlannedEndDate != request.PlannedEndDate) &&
+            await store.HasNonCancelledSessionsOutsideRangeAsync(id, request.PlannedStartDate,
+                request.PlannedEndDate, cancellationToken))
+            return TrainingGroupMutationResult.Error(TrainingGroupMutationStatus.SessionOutsideProposedDateRange);
 
         var now = timeProvider.GetUtcNow();
         var changed = group.UpdateDetails(request.Name, request.PlannedStartDate, request.PlannedEndDate, now);

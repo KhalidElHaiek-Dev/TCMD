@@ -49,10 +49,12 @@ An inactive course cannot be selected for a new group. Existing groups keep thei
 2. They enter the group name and planned dates.
 3. They may assign one active primary instructor while the group is Planned. A primary instructor is required before activation.
 4. TCMD validates that the end date is not before the start date.
-5. TCMD creates the group with an agreed status.
+5. TCMD creates the group as Planned. Activation is a separate action and requires both the course and primary instructor to be active.
 6. Staff can update the group, view its members, and view its sessions.
 
 Group statuses are Planned, Active, Completed, and Cancelled. A group moves from Planned to Active and then to Completed, or from Planned or Active to Cancelled. Completed and Cancelled are terminal statuses in V1.
+
+While Planned, a group may change course and may assign, replace, or remove its primary instructor. While Active, its name and dates may be updated and its primary instructor may be replaced by another active instructor, but its course cannot change and its instructor cannot be removed. Completed and Cancelled groups cannot be edited. Cancellation preserves the group and its history rather than deleting it.
 
 ## 6. Enroll a student
 

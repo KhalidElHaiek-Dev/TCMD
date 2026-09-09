@@ -136,7 +136,7 @@ Delivered behavior:
 
 Goal: organize planned deliveries of courses before adding enrollment workflows.
 
-Planned deliverables:
+Delivered behavior:
 
 - training-group creation, retrieval, list, and update;
 - active course and optional primary-instructor assignment while Planned;

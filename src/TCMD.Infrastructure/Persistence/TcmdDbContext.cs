@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using TCMD.Domain.Courses;
 using TCMD.Domain.Instructors;
 using TCMD.Domain.Students;
+using TCMD.Domain.TrainingGroups;
 using TCMD.Infrastructure.Identity;
 
 namespace TCMD.Infrastructure.Persistence;
@@ -14,6 +15,7 @@ public sealed class TcmdDbContext(DbContextOptions<TcmdDbContext> options)
     public DbSet<Course> Courses => Set<Course>();
     public DbSet<Student> Students => Set<Student>();
     public DbSet<Instructor> Instructors => Set<Instructor>();
+    public DbSet<TrainingGroup> TrainingGroups => Set<TrainingGroup>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

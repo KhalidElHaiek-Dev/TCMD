@@ -127,6 +127,13 @@ Rules:
 - Group statuses are Planned, Active, Completed, and Cancelled.
 - The same course cannot have two groups with the same name and planned start date.
 - V1 supports at most one primary instructor per group. Multiple instructors are deferred.
+- New groups begin as Planned. Planned groups may change course and may assign, replace, or remove their primary instructor.
+- Active groups cannot change course or remove their instructor, but may replace the instructor with another active instructor.
+- Planned and Active group names and dates may be updated. Completed and Cancelled groups cannot be edited.
+- A group moves from Planned to Active and then to Completed, or from Planned or Active to Cancelled. Completed and Cancelled are terminal.
+- Activation requires the assigned course and primary instructor to be active. Existing inactive references remain for history when they are not changed.
+- Group names are trimmed and limited to 200 characters. Duplicate-name comparison follows the database's case-insensitive behavior.
+- Cancellation preserves a group and its history; TrainingGroup does not have a separate active flag.
 
 ## Enrollment
 

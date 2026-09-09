@@ -185,18 +185,23 @@ Assigned-Instructor session views remain deferred. Milestone 9 does not add atte
 
 Goal: record and correct attendance for eligible students in delivered sessions.
 
-Planned deliverables:
+Delivered behavior:
 
-- attendance entry and correction;
-- attendance views by session, student, and group;
-- session, enrollment, and timing validation; and
-- integration tests for attendance relationships and uniqueness.
+- attendance entry and rowversion-protected correction with staff-actor metadata;
+- roster attendance by session and saved-attendance views by student and group;
+- Active-enrollment, same-group, session-state, and Africa/Casablanca timing validation; and
+- domain and SQL-backed integration tests for relationships, history, authorization, and uniqueness.
 
 Completion criteria:
 
 - authorized users can record and correct attendance;
 - invalid or duplicate attendance is rejected; and
 - cancelled sessions and historical records follow the approved rules.
+
+Missing attendance means Not Recorded rather than Absent. New entry requires a currently Active enrollment whose
+enrollment date is no later than the session date. Existing attendance remains visible and correctable after later
+enrollment, student, group, or session state changes. Instructor access remains deferred until account-to-Instructor
+linkage can enforce assigned-group access.
 
 ## Milestone 11: Browser interface integration
 

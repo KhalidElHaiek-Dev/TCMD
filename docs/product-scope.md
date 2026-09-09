@@ -110,6 +110,12 @@ Structured room management and schedule-conflict detection are deferred.
 
 Attendance statuses are Present, Absent, Late, and Excused. A correction note is optional. Full correction-history auditing is deferred.
 
+Missing attendance means Not Recorded, not Absent. New attendance requires a currently Active enrollment in the
+session's group whose enrollment date is no later than the session date. A Scheduled session accepts attendance once
+its Africa/Casablanca local start is reached; a Completed session accepts it without a clock restriction, while a
+Cancelled session rejects new entry. Existing attendance remains readable and correctable after later status changes.
+Correction notes are trimmed optional text limited to 1,000 characters.
+
 ### Basic operational views
 
 V1 may show simple lists and counts needed for the workflows above. Examples include active students, upcoming sessions, group membership, and attendance by session. Advanced analytics and custom report building are postponed.

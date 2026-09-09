@@ -10,6 +10,8 @@ using TCMD.Api.Students;
 using TCMD.Api.StaffAccounts;
 using TCMD.Api.TrainingGroups;
 using TCMD.Api.TrainingSessions;
+using TCMD.Api.Attendance;
+using TCMD.Application.Attendance;
 using TCMD.Application.Students;
 using TCMD.Application.Courses;
 using TCMD.Application.Enrollments;
@@ -36,6 +38,11 @@ builder.Services.AddProblemDetails(options =>
 builder.Services.AddOpenApi();
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<RecordAttendance>();
+builder.Services.AddScoped<CorrectAttendance>();
+builder.Services.AddScoped<ListTrainingSessionAttendance>();
+builder.Services.AddScoped<ListStudentAttendance>();
+builder.Services.AddScoped<ListTrainingGroupAttendance>();
 builder.Services.AddScoped<CreateCourse>();
 builder.Services.AddScoped<CreateEnrollment>();
 builder.Services.AddScoped<CompleteEnrollment>();
@@ -71,7 +78,9 @@ builder.Services.AddScoped<UpdateTrainingSession>();
 builder.Services.AddScoped<CompleteTrainingSession>();
 builder.Services.AddScoped<CancelTrainingSession>();
 builder.Services.AddScoped<StaffAccountAdministration>();
-builder.Services.AddInfrastructure(connectionString);
+var trainingCenterTimeZone = builder.Configuration["TrainingCenter:TimeZone"]
+    ?? throw new InvalidOperationException("TrainingCenter:TimeZone is not configured.");
+builder.Services.AddInfrastructure(connectionString, trainingCenterTimeZone);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddIdentityCore<StaffUser>(options =>
 {
@@ -137,6 +146,7 @@ app.MapStudentEndpoints();
 app.MapInstructorEndpoints();
 app.MapTrainingGroupEndpoints();
 app.MapTrainingSessionEndpoints();
+app.MapAttendanceEndpoints();
 app.MapStaffAccountEndpoints();
 app.MapFallback(() => Results.NotFound()).AllowAnonymous();
 

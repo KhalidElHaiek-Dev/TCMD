@@ -10,6 +10,7 @@ namespace TCMD.IntegrationTests;
 
 public sealed class TcmdApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    private readonly TestTimeProvider testTimeProvider = new();
     private const string LocalDbFallbackConnectionString =
         "Server=(localdb)\\MSSQLLocalDB;Database=TCMD.IntegrationTests;Trusted_Connection=True;TrustServerCertificate=True";
 
@@ -18,6 +19,7 @@ public sealed class TcmdApiFactory : WebApplicationFactory<Program>, IAsyncLifet
         var connectionString = GetTestConnectionString();
         EnsureDedicatedTestDatabase(connectionString);
         builder.UseSetting("ConnectionStrings:TCMD", connectionString);
+        builder.ConfigureServices(services => services.AddSingleton<TimeProvider>(testTimeProvider));
     }
 
     public async Task InitializeAsync()
@@ -32,6 +34,9 @@ public sealed class TcmdApiFactory : WebApplicationFactory<Program>, IAsyncLifet
         await base.DisposeAsync();
         GC.SuppressFinalize(this);
     }
+
+    public void SetUtcNow(DateTimeOffset value) => testTimeProvider.SetUtcNow(value);
+    public void ResetUtcNow() => testTimeProvider.Reset();
 
     private static void EnsureDedicatedTestDatabase(string connectionString)
     {
@@ -60,4 +65,12 @@ public sealed class TcmdApiFactory : WebApplicationFactory<Program>, IAsyncLifet
             ? LocalDbFallbackConnectionString
             : configuredConnectionString;
     }
+}
+
+internal sealed class TestTimeProvider : TimeProvider
+{
+    private DateTimeOffset? overriddenUtcNow;
+    public override DateTimeOffset GetUtcNow() => overriddenUtcNow ?? DateTimeOffset.UtcNow;
+    public void SetUtcNow(DateTimeOffset value) => overriddenUtcNow = value;
+    public void Reset() => overriddenUtcNow = null;
 }

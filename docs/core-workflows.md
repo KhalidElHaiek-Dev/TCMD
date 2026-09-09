@@ -100,6 +100,16 @@ Milestone 9 endpoints are restricted to administrators and staff. Assigned-Instr
 
 Attendance statuses are Present, Absent, Late, and Excused. Attendance cannot be recorded before the session starts. A correction note is optional, and full correction-history auditing is deferred.
 
+For new entry, an applicable enrollment is currently Active, belongs to the session's group, and has an enrollment
+date no later than the session date; same-day enrollment qualifies. Student active status does not independently block
+entry. Scheduled-session timing is evaluated in the configured Africa/Casablanca training-center timezone, Completed
+sessions accept entry, and Cancelled sessions reject new entry. Existing attendance remains visible and correctable
+after later state changes, including cancellation. Corrections update the same row using `rowversion`; notes are
+trimmed optional text up to 1,000 characters. Missing attendance means Not Recorded, not Absent.
+
+Attendance neither completes sessions nor changes Enrollment status. V1 exposes single-record entry only; bulk entry
+and full correction-history auditing remain deferred.
+
 ## 9. View operational information
 
 Authorized users can search or navigate to:

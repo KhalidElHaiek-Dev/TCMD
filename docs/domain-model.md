@@ -218,6 +218,16 @@ Rules:
 - Statuses are Present, Absent, Late, and Excused.
 - A correction note is optional.
 - Store the staff user who created and last updated the record. Full correction-history auditing is deferred.
+- Attendance identifiers are generated GUIDs, and `(EnrollmentId, TrainingSessionId)` is permanently unique.
+- New attendance requires a currently Active enrollment whose enrollment date is no later than the session date;
+  same-day enrollment is applicable. Student active status does not independently affect eligibility.
+- Scheduled sessions accept new attendance at or after their Africa/Casablanca local start. Completed sessions accept
+  new attendance, and Cancelled sessions reject it.
+- Corrections update the same record and use SQL Server `rowversion`. Existing records remain readable and correctable
+  after later Student, Enrollment, Training Group, or Training Session state changes, including session cancellation.
+- Correction notes are trimmed, blank values become null, and the maximum length is 1,000 characters.
+- Missing attendance is Not Recorded and is never interpreted automatically as Absent.
+- Attendance does not automatically change Training Session or Enrollment status.
 
 ## Cross-entity business rules
 

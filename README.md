@@ -15,9 +15,10 @@ Milestone 9 completes Training Session management: authorized operational staff 
 - Milestone 6: standalone Course creation, list/search, retrieval, update, deactivation, code uniqueness, and rowversion concurrency handling; and
 - Milestone 7: standalone Training Group creation, list/search/filtering, retrieval, detail and assignment updates, activation, completion, cancellation, relationship validation, uniqueness, and rowversion concurrency handling.
 - Milestone 8: Enrollment creation, Student and Training Group membership views, status management, withdrawn-membership reactivation, permanent pair uniqueness, and rowversion concurrency handling.
-- Milestone 9: Training Session scheduling, chronological group views, detail updates, explicit completion, cancellation, group-range protection, and rowversion concurrency handling.
+- Milestone 9: Training Session scheduling, chronological group views, detail updates, explicit completion, cancellation, group-range protection, and rowversion concurrency handling; and
+- Milestone 10: Attendance entry, correction, session rosters, student/group views, staff actor auditing, eligibility and Africa/Casablanca timing rules, permanent pair uniqueness, and rowversion concurrency handling.
 
-Attendance, staff-account linking, Instructor self-service, assigned-Instructor session views, and browser-interface features remain later milestones.
+Staff-account linking, Instructor self-service, assigned-Instructor session/Attendance views, and browser-interface features remain later milestones.
 
 ## Solution structure
 
@@ -172,6 +173,16 @@ Training Group statuses are Planned, Active, Completed, and Cancelled. Completed
 Enrollment statuses are Active, Completed, and Withdrawn. Each Student and Training Group pair has exactly one permanent Enrollment record. Withdrawal and reactivation preserve its identifier, original system-assigned UTC enrollment date, creation timestamp, and future attendance relationship. Completing or cancelling a Training Group does not automatically change Enrollments. Enrollment status commands require the current base64 `rowVersion`; stale changes return `409 Conflict`. Administrator and Staff accounts can use these endpoints; Instructor accounts cannot use the Milestone 8 slice.
 
 Training Sessions use `POST` and `GET /api/training-groups/{groupId}/sessions` and `GET`, `PUT`, `POST /complete`, and `POST /cancel` under `/api/training-sessions/{id}`. Scheduled date and times use `DateOnly`/`TimeOnly`; location is optional plain text up to 500 characters. Sessions may be created or edited only while their group is Planned or Active, but explicit completion and cancellation remain available as historical corrections after the parent group becomes terminal. Completed and Cancelled sessions are terminal and retained. Exact duplicates are allowed because scheduling-conflict detection is deferred. Mutations use SQL Server `rowversion`. All Milestone 9 endpoints are limited to Administrator and Staff accounts; assigned-Instructor reads are deferred until staff accounts can be linked safely to Instructor records.
+
+Attendance uses `POST` and `GET /api/training-sessions/{sessionId}/attendance`, `PUT /api/attendance/{id}`,
+`GET /api/students/{studentId}/attendance`, and `GET /api/training-groups/{groupId}/attendance`. Statuses are Present,
+Absent, Late, and Excused; missing roster attendance is Not Recorded. New entry requires a currently Active same-group
+Enrollment dated no later than the session, and accepts started Scheduled or Completed sessions while rejecting
+Cancelled sessions. Scheduled timing uses the configured Africa/Casablanca timezone. Corrections update the same row,
+accept an optional trimmed note up to 1,000 characters, and use SQL Server `rowversion`. Actor IDs come from the
+authenticated staff identity. Historical Attendance remains readable and correctable after later state changes. There
+is no delete or bulk endpoint and Attendance causes no automatic Session or Enrollment transitions. All Attendance
+endpoints require Administrator or Staff; Instructor access remains deferred pending account linkage.
 
 Unknown routes and unhandled API errors use `ProblemDetails` JSON and include a request `traceId` for troubleshooting.
 

@@ -54,6 +54,9 @@ Instructors cannot update student details. They cannot create, reschedule, or ca
 
 Milestone 9 does not yet expose session reads to authenticated Instructor-role accounts. The optional StaffUser-to-Instructor link is not implemented, so all current Training Session endpoints require the Operational Staff policy. Assigned-session reads remain deferred until that link can enforce the approved restriction without exposing other instructors' records.
 
+Milestone 10 likewise restricts all Attendance endpoints to the Operational Staff policy. Instructor Attendance access
+remains deferred until account-to-Instructor linkage supports enforceable assigned-group authorization.
+
 ## Staff accounts and instructor records
 
 A staff account represents permission to sign in. An instructor record represents a person who teaches.

@@ -95,6 +95,10 @@ Minimum proposed information:
 Rules:
 
 - Course code must be unique.
+- Course code is trimmed, stored in invariant uppercase, and is unique without regard to the casing supplied by a user.
+- Course code is limited to 50 characters and may contain letters, digits, spaces, hyphens, underscores, periods, and slashes.
+- Course name is limited to 200 characters, and the optional description is limited to 2,000 characters.
+- Course-code uniqueness applies across active and inactive courses.
 - A course can have many training groups.
 - An inactive course cannot be used for a new group.
 - Course pricing, prerequisites, and materials are outside V1.

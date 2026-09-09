@@ -4,25 +4,26 @@ TCMD stands for **Training Center Management Dashboard**. It is an internal web 
 
 ## Current status
 
-Milestone 5 completes standalone Instructor management: authorized operational staff can create, retrieve, list, search, update, and deactivate instructors with SQL Server optimistic-concurrency protection. The implemented history is:
+Milestone 6 completes standalone Course management: authorized operational staff can create, retrieve, list, search, update, and deactivate courses with unique canonical codes and SQL Server optimistic-concurrency protection. The implemented history is:
 
 - Milestone 1: executable API, SQL Server, migrations, health, OpenAPI, and integration-test foundation;
 - Milestone 2: Student registration and retrieval vertical slice;
 - Milestone 3A: ASP.NET Core Identity cookie authentication, roles, bootstrap administrator, and protected endpoints;
 - Milestone 3B: Administrator-only staff-account administration;
 - Milestone 4: standalone Student list/search, update, deactivation, and rowversion concurrency handling; and
-- Milestone 5: standalone Instructor creation, list/search, retrieval, update, deactivation, and rowversion concurrency handling.
+- Milestone 5: standalone Instructor creation, list/search, retrieval, update, deactivation, and rowversion concurrency handling; and
+- Milestone 6: standalone Course creation, list/search, retrieval, update, deactivation, code uniqueness, and rowversion concurrency handling.
 
-Course, group, enrollment, session, attendance, staff-account linking, Instructor self-service, and browser-interface features remain future milestones.
+Milestone 7 is standalone Training Group management. Enrollment, session, attendance, staff-account linking, Instructor self-service, and browser-interface features remain later milestones.
 
 ## Solution structure
 
 - `src/TCMD.Api` is the ASP.NET Core executable. It owns HTTP endpoints, startup, configuration, dependency registration, middleware, health checks, and OpenAPI generation.
-- `src/TCMD.Application` owns the student and instructor use cases, request/response models, and narrow persistence abstractions.
-- `src/TCMD.Domain` owns the `Student` and `Instructor` entities and their business rules. It has no web or persistence dependencies.
+- `src/TCMD.Application` owns the student, instructor, and course use cases, request/response models, and narrow persistence abstractions.
+- `src/TCMD.Domain` owns the `Student`, `Instructor`, and `Course` entities and their business rules. It has no web or persistence dependencies.
 - `src/TCMD.Infrastructure` owns EF Core, SQL Server, `TcmdDbContext`, entity configuration, persistence implementations, and migrations.
 - `tests/TCMD.IntegrationTests` starts the real API pipeline with `WebApplicationFactory` and tests it through `HttpClient` against a dedicated SQL Server database.
-- `tests/TCMD.DomainTests` contains focused tests for student and instructor domain rules.
+- `tests/TCMD.DomainTests` contains focused tests for student, instructor, and course domain rules.
 
 The dependency direction is `TCMD.Api -> TCMD.Application + TCMD.Infrastructure`, `TCMD.Infrastructure -> TCMD.Application + TCMD.Domain`, and `TCMD.Application -> TCMD.Domain`. The Domain project has no project dependencies. Infrastructure implements interfaces owned by Application, so use cases remain independent of EF Core and SQL Server.
 
@@ -30,11 +31,11 @@ The dependency direction is `TCMD.Api -> TCMD.Application + TCMD.Infrastructure`
 
 - `TCMD.slnx` groups the three projects so restore, build, and test commands can run from the repository root.
 - `src/TCMD.Api/Program.cs` is the application entry point. It registers services and builds the ASP.NET Core middleware and endpoint pipeline.
-- `src/TCMD.Api/Students/StudentEndpoints.cs` and `src/TCMD.Api/Instructors/InstructorEndpoints.cs` map the standalone management endpoints and translate HTTP input and outcomes.
-- `src/TCMD.Application/Students/` and `src/TCMD.Application/Instructors/` contain the use cases and persistence abstractions.
-- `src/TCMD.Domain/Students/Student.cs` and `src/TCMD.Domain/Instructors/Instructor.cs` contain the approved domain fields and rules.
+- `src/TCMD.Api/Students/StudentEndpoints.cs`, `src/TCMD.Api/Instructors/InstructorEndpoints.cs`, and `src/TCMD.Api/Courses/CourseEndpoints.cs` map the standalone management endpoints and translate HTTP input and outcomes.
+- `src/TCMD.Application/Students/`, `src/TCMD.Application/Instructors/`, and `src/TCMD.Application/Courses/` contain the use cases and persistence abstractions.
+- `src/TCMD.Domain/Students/Student.cs`, `src/TCMD.Domain/Instructors/Instructor.cs`, and `src/TCMD.Domain/Courses/Course.cs` contain the approved domain fields and rules.
 - `src/TCMD.Infrastructure/Persistence/TcmdDbContext.cs` is the EF Core database context.
-- `src/TCMD.Infrastructure/Persistence/Migrations/` contains the relocated initial migration, the student migration, and the model snapshot.
+- `src/TCMD.Infrastructure/Persistence/Migrations/` contains the ordered EF Core migrations and the current model snapshot.
 - `src/TCMD.Api/appsettings.json` contains safe shared settings only. ASP.NET Core loads environment variables and user-secrets over these settings.
 - `tests/TCMD.IntegrationTests/TcmdApiFactory.cs` configures `WebApplicationFactory`, guards the dedicated test database name, and applies migrations before tests.
 - `tests/TCMD.IntegrationTests/HealthEndpointTests.cs` proves the real API pipeline, SQL Server connection, OpenAPI document, and `ProblemDetails` response work together.
@@ -138,6 +139,14 @@ Use the listening URL printed by ASP.NET Core:
 - `POST /api/instructors/{id}/deactivate` marks an instructor inactive using `rowVersion`; repeating it does not write again.
 
 Student and Instructor representations include a base64 `rowVersion`. Send that value unchanged when updating or initially deactivating a record. Administrator and Staff accounts can use these endpoints. Instructor accounts cannot use standalone Student or Instructor endpoints in V1.
+
+- `POST /api/courses` creates an active course from required `code` and `name` plus optional `description`; codes are trimmed and stored in invariant uppercase.
+- `GET /api/courses` lists all courses and accepts optional `search` across code, name, and description plus `isActive=true|false`.
+- `GET /api/courses/{id}` returns one course or `404 Not Found`.
+- `PUT /api/courses/{id}` updates course details using the current base64 `rowVersion`; duplicate codes and stale versions return `409 Conflict`.
+- `POST /api/courses/{id}/deactivate` marks a course inactive using `rowVersion`; repeating it does not write again.
+
+Course codes are unique across active and inactive courses. Administrator and Staff accounts can use standalone Course endpoints; Instructor accounts cannot.
 
 Unknown routes and unhandled API errors use `ProblemDetails` JSON and include a request `traceId` for troubleshooting.
 

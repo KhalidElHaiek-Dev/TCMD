@@ -56,83 +56,146 @@ Approved technical baseline:
 - xUnit and `WebApplicationFactory` for integration tests; and
 - HTML, CSS, JavaScript, and Fetch served from the API for the later browser interface.
 
-## Milestone 2: Authentication and authorization
+## Milestone 2: Student registration and retrieval
 
-Goal: protect the application before adding operational features.
+Goal: deliver the first operational vertical slice on the API foundation.
 
-Planned deliverables:
+Delivered behavior:
 
-- staff accounts;
+- student registration with required basic details;
+- unique, generated student numbers;
+- student retrieval by identifier; and
+- domain and SQL-backed integration tests.
+
+## Milestone 3A: Authentication and authorization foundation
+
+Goal: protect the application before expanding operational features.
+
+Delivered behavior:
+
 - secure credential storage;
 - sign-in and sign-out behavior;
 - Administrator, Staff, and Instructor authorization rules;
 - account deactivation; and
 - integration tests for authentication and forbidden actions.
 
-Completion criteria:
+## Milestone 3B: Staff-account administration
 
-- inactive and invalid accounts cannot sign in;
-- protected operations require authentication; and
-- each role is restricted according to the approved permissions.
+Goal: allow administrators to manage internal access safely.
 
-## Milestone 3: Core reference records
+Delivered behavior:
 
-Goal: manage the people and course information needed by later workflows.
+- Administrator-only staff-account creation and retrieval;
+- role, active-status, and password administration;
+- protection for the last active Administrator; and
+- session invalidation after security-sensitive account changes.
+
+Optional links between instructor records and staff accounts remain future work.
+
+## Milestone 4: Standalone Student management
+
+Goal: complete the standalone student workflows needed by later enrollment work.
+
+Delivered behavior:
+
+- student list and search;
+- active/inactive filtering;
+- basic-detail updates;
+- deactivation without deleting history;
+- optimistic-concurrency protection; and
+- validation, authorization, domain, and integration tests.
+
+## Milestone 5: Standalone Instructor management
+
+Goal: manage instructor records needed by later group assignment.
+
+Delivered behavior:
+
+- instructor creation, retrieval, list, and search;
+- active/inactive filtering;
+- basic-detail updates;
+- deactivation without deleting history;
+- optimistic-concurrency protection; and
+- validation, authorization, domain, and integration tests.
+
+## Milestone 6: Standalone Course management
+
+Goal: manage reusable course records needed by later training groups.
+
+Delivered behavior:
+
+- course creation, retrieval, list, and search;
+- active/inactive filtering;
+- course-detail updates;
+- canonical, unique course codes across active and inactive records;
+- deactivation without deleting history;
+- optimistic-concurrency protection; and
+- validation, authorization, domain, and integration tests.
+
+## Milestone 7: Standalone Training Group management
+
+Goal: organize planned deliveries of courses before adding enrollment workflows.
 
 Planned deliverables:
 
-- student management;
-- instructor management;
-- optional links between instructor records and staff accounts;
-- course management;
-- search and active/inactive behavior; and
-- validation and integration tests.
+- training-group creation, retrieval, list, and update;
+- active course and optional primary-instructor assignment while Planned;
+- group status and planned-date rules;
+- course and instructor group views; and
+- validation, authorization, concurrency, and integration tests.
 
 Completion criteria:
 
-- authorized users can create, view, update, search, and deactivate records;
-- unique and required values are enforced; and
-- unauthorized changes are rejected.
+- staff can create and maintain a valid group for an active course;
+- group dates, status, and instructor requirements follow the approved rules; and
+- inactive reference records cannot be selected for new assignments.
 
-## Milestone 4: Groups and enrollments
+## Milestone 8: Enrollment management
 
-Goal: organize students into deliveries of courses.
+Goal: enroll eligible students into training groups while preserving membership history.
 
 Planned deliverables:
 
-- training-group management;
-- course and primary-instructor assignment;
-- group status and planned dates;
-- enrollment management;
-- student and group membership views; and
-- integration tests for dates, inactive records, and duplicate enrollment.
+- enrollment creation and status management;
+- student and group membership views;
+- withdrawn-enrollment reactivation; and
+- integration tests for inactive records, status rules, and duplicate enrollment.
 
 Completion criteria:
 
-- staff can create a valid group and enroll eligible students;
+- staff can enroll eligible students;
 - duplicate enrollment is impossible; and
 - enrollment history survives status changes.
 
-## Milestone 5: Sessions and attendance
+## Milestone 9: Training sessions
 
-Goal: support day-to-day delivery and attendance tracking.
+Goal: schedule and maintain the meetings delivered by each training group.
 
 Planned deliverables:
 
-- session scheduling and cancellation;
+- session scheduling, update, and cancellation;
 - session lists by group;
+- group-date validation; and
+- instructor restrictions to assigned session views.
+
+## Milestone 10: Attendance
+
+Goal: record and correct attendance for eligible students in delivered sessions.
+
+Planned deliverables:
+
 - attendance entry and correction;
 - attendance views by session, student, and group;
-- instructor restrictions to assigned work; and
+- session, enrollment, and timing validation; and
 - integration tests for attendance relationships and uniqueness.
 
 Completion criteria:
 
-- authorized users can schedule a session and record attendance;
+- authorized users can record and correct attendance;
 - invalid or duplicate attendance is rejected; and
 - cancelled sessions and historical records follow the approved rules.
 
-## Milestone 6: Browser interface integration
+## Milestone 11: Browser interface integration
 
 Goal: provide a clear internal interface for the approved workflows.
 
@@ -150,7 +213,7 @@ Completion criteria:
 - server errors are presented safely and clearly; and
 - essential keyboard and accessibility checks pass.
 
-## Milestone 7: V1 hardening and release preparation
+## Milestone 12: V1 hardening and release preparation
 
 Goal: make the completed V1 dependable and supportable.
 

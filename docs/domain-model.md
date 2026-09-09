@@ -156,6 +156,11 @@ Rules:
 - Changing status does not delete attendance history.
 - Statuses are Active, Completed, and Withdrawn.
 - A withdrawn student who rejoins the same group reuses the existing enrollment, which returns to Active.
+- New enrollments and reactivations are allowed only for active students in Planned or Active groups.
+- Enrollment date is the UTC date assigned by the system on initial creation and does not change on reactivation.
+- Active enrollments may become Completed or Withdrawn. Withdrawn enrollments may return to Active. Completed is terminal.
+- Completing or cancelling a group does not automatically change its enrollments. Staff may still complete or withdraw an enrollment afterward as a correction.
+- Enrollment status changes use optimistic concurrency and never physically delete the record.
 
 ## TrainingSession
 

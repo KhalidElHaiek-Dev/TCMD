@@ -154,7 +154,7 @@ Completion criteria:
 
 Goal: enroll eligible students into training groups while preserving membership history.
 
-Planned deliverables:
+Delivered behavior:
 
 - enrollment creation and status management;
 - student and group membership views;

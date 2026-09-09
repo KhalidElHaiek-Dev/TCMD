@@ -69,6 +69,7 @@ While Planned, a group may change course and may assign, replace, or remove its 
 Enrollment statuses are Active, Completed, and Withdrawn. Group capacity limits are deferred.
 
 Changing an enrollment must not erase its earlier attendance records.
+New enrollment and withdrawn-enrollment reactivation require an active student and a Planned or Active group. Completed enrollments are terminal. Completing or cancelling a group does not automatically change its enrollments, although staff may still complete or withdraw an enrollment afterward as a correction. The system assigns the immutable enrollment date from the current UTC date when the enrollment is first created.
 
 ## 7. Schedule a training session
 

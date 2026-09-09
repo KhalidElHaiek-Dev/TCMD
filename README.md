@@ -4,7 +4,7 @@ TCMD stands for **Training Center Management Dashboard**. It is an internal web 
 
 ## Current status
 
-Milestone 7 completes standalone Training Group management: authorized operational staff can create, retrieve, list, search, update, activate, complete, and cancel groups connected to existing courses and primary instructors, with validated status transitions and SQL Server optimistic-concurrency protection. The implemented history is:
+Milestone 8 completes Student Enrollment management: authorized operational staff can enroll active students in Planned or Active groups, view membership from either side, complete or withdraw enrollments, and reactivate withdrawn memberships without losing history. The implemented history is:
 
 - Milestone 1: executable API, SQL Server, migrations, health, OpenAPI, and integration-test foundation;
 - Milestone 2: Student registration and retrieval vertical slice;
@@ -14,17 +14,18 @@ Milestone 7 completes standalone Training Group management: authorized operation
 - Milestone 5: standalone Instructor creation, list/search, retrieval, update, deactivation, and rowversion concurrency handling; and
 - Milestone 6: standalone Course creation, list/search, retrieval, update, deactivation, code uniqueness, and rowversion concurrency handling; and
 - Milestone 7: standalone Training Group creation, list/search/filtering, retrieval, detail and assignment updates, activation, completion, cancellation, relationship validation, uniqueness, and rowversion concurrency handling.
+- Milestone 8: Enrollment creation, Student and Training Group membership views, status management, withdrawn-membership reactivation, permanent pair uniqueness, and rowversion concurrency handling.
 
-Milestone 8 is Enrollment management. Enrollment, session, attendance, staff-account linking, Instructor self-service, and browser-interface features remain later milestones.
+Session, attendance, staff-account linking, Instructor self-service, and browser-interface features remain later milestones.
 
 ## Solution structure
 
 - `src/TCMD.Api` is the ASP.NET Core executable. It owns HTTP endpoints, startup, configuration, dependency registration, middleware, health checks, and OpenAPI generation.
-- `src/TCMD.Application` owns the student, instructor, course, and training-group use cases, request/response models, and narrow persistence abstractions.
-- `src/TCMD.Domain` owns the `Student`, `Instructor`, `Course`, and `TrainingGroup` entities and their business rules. It has no web or persistence dependencies.
+- `src/TCMD.Application` owns the student, instructor, course, training-group, and enrollment use cases, request/response models, and narrow persistence abstractions.
+- `src/TCMD.Domain` owns the `Student`, `Instructor`, `Course`, `TrainingGroup`, and `Enrollment` entities and their business rules. It has no web or persistence dependencies.
 - `src/TCMD.Infrastructure` owns EF Core, SQL Server, `TcmdDbContext`, entity configuration, persistence implementations, and migrations.
 - `tests/TCMD.IntegrationTests` starts the real API pipeline with `WebApplicationFactory` and tests it through `HttpClient` against a dedicated SQL Server database.
-- `tests/TCMD.DomainTests` contains focused tests for student, instructor, course, and training-group domain rules.
+- `tests/TCMD.DomainTests` contains focused tests for student, instructor, course, training-group, and enrollment domain rules.
 
 The dependency direction is `TCMD.Api -> TCMD.Application + TCMD.Infrastructure`, `TCMD.Infrastructure -> TCMD.Application + TCMD.Domain`, and `TCMD.Application -> TCMD.Domain`. The Domain project has no project dependencies. Infrastructure implements interfaces owned by Application, so use cases remain independent of EF Core and SQL Server.
 
@@ -33,8 +34,9 @@ The dependency direction is `TCMD.Api -> TCMD.Application + TCMD.Infrastructure`
 - `TCMD.slnx` groups the three projects so restore, build, and test commands can run from the repository root.
 - `src/TCMD.Api/Program.cs` is the application entry point. It registers services and builds the ASP.NET Core middleware and endpoint pipeline.
 - `src/TCMD.Api/Students/StudentEndpoints.cs`, `src/TCMD.Api/Instructors/InstructorEndpoints.cs`, `src/TCMD.Api/Courses/CourseEndpoints.cs`, and `src/TCMD.Api/TrainingGroups/TrainingGroupEndpoints.cs` map the standalone management endpoints and translate HTTP input and outcomes.
-- `src/TCMD.Application/Students/`, `src/TCMD.Application/Instructors/`, `src/TCMD.Application/Courses/`, and `src/TCMD.Application/TrainingGroups/` contain the use cases and persistence abstractions.
-- `src/TCMD.Domain/Students/Student.cs`, `src/TCMD.Domain/Instructors/Instructor.cs`, `src/TCMD.Domain/Courses/Course.cs`, and `src/TCMD.Domain/TrainingGroups/TrainingGroup.cs` contain the approved domain fields and rules.
+- `src/TCMD.Api/Enrollments/EnrollmentEndpoints.cs` maps Enrollment creation, membership views, and status commands.
+- `src/TCMD.Application/Students/`, `src/TCMD.Application/Instructors/`, `src/TCMD.Application/Courses/`, `src/TCMD.Application/TrainingGroups/`, and `src/TCMD.Application/Enrollments/` contain the use cases and persistence abstractions.
+- `src/TCMD.Domain/Students/Student.cs`, `src/TCMD.Domain/Instructors/Instructor.cs`, `src/TCMD.Domain/Courses/Course.cs`, `src/TCMD.Domain/TrainingGroups/TrainingGroup.cs`, and `src/TCMD.Domain/Enrollments/Enrollment.cs` contain the approved domain fields and rules.
 - `src/TCMD.Infrastructure/Persistence/TcmdDbContext.cs` is the EF Core database context.
 - `src/TCMD.Infrastructure/Persistence/Migrations/` contains the ordered EF Core migrations and the current model snapshot.
 - `src/TCMD.Api/appsettings.json` contains safe shared settings only. ASP.NET Core loads environment variables and user-secrets over these settings.
@@ -158,6 +160,15 @@ Course codes are unique across active and inactive courses. Administrator and St
 - `POST /api/training-groups/{id}/cancel` cancels a Planned or Active group without deleting it.
 
 Training Group statuses are Planned, Active, Completed, and Cancelled. Completed and Cancelled groups are terminal and preserved for historical views. Course and instructor group views use the Training Group list filters. Administrator and Staff accounts can use these endpoints; Instructor accounts cannot use this standalone management slice.
+
+- `POST /api/training-groups/{groupId}/enrollments` enrolls an active Student in a Planned or Active Training Group.
+- `GET /api/training-groups/{groupId}/enrollments` lists historical and current membership with compact Student details.
+- `GET /api/students/{studentId}/enrollments` lists historical and current membership with compact Training Group details.
+- `POST /api/enrollments/{id}/complete` completes an Active Enrollment.
+- `POST /api/enrollments/{id}/withdraw` withdraws an Active Enrollment.
+- `POST /api/enrollments/{id}/reactivate` reactivates a Withdrawn Enrollment when its Student is active and group is Planned or Active.
+
+Enrollment statuses are Active, Completed, and Withdrawn. Each Student and Training Group pair has exactly one permanent Enrollment record. Withdrawal and reactivation preserve its identifier, original system-assigned UTC enrollment date, creation timestamp, and future attendance relationship. Completing or cancelling a Training Group does not automatically change Enrollments. Enrollment status commands require the current base64 `rowVersion`; stale changes return `409 Conflict`. Administrator and Staff accounts can use these endpoints; Instructor accounts cannot use the Milestone 8 slice.
 
 Unknown routes and unhandled API errors use `ProblemDetails` JSON and include a request `traceId` for troubleshooting.
 

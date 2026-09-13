@@ -38,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<ITrainingSessionStore, EfTrainingSessionStore>();
         services.AddScoped<IStudentNumberGenerator, SqlStudentNumberGenerator>();
         services.AddScoped<IStaffAccountStore, IdentityStaffAccountStore>();
+        services.AddScoped<IInstructorAccessStore, InstructorAccessStore>();
         return services;
     }
 }

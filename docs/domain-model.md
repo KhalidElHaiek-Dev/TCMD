@@ -37,6 +37,9 @@ Rules:
 - Plain-text passwords must never be stored.
 - An inactive user cannot sign in.
 - A staff user may link to at most one instructor record.
+- Only an Instructor-role staff user may hold an instructor link.
+- The linked Instructor must be active when the link is created or replaced.
+- Instructor identifier is a nullable foreign key with a unique filtered index, so an Instructor links to at most one account.
 - A staff user has exactly one role in V1. Multiple roles are deferred.
 
 ## Student
@@ -77,6 +80,7 @@ Rules:
 - An instructor can be the primary instructor of many groups.
 - An inactive instructor cannot be assigned to a new group.
 - An instructor may optionally have one linked staff account.
+- Deactivation retains an existing staff-account link but makes it unusable for assigned access.
 - A Planned group may temporarily have no instructor. One active primary instructor is required before activation.
 
 ## Course
@@ -190,6 +194,7 @@ Rules:
 - Scheduled sessions may be explicitly Completed or Cancelled even after their group becomes terminal. Completed and Cancelled are terminal; same-state commands are idempotent.
 - Location is trimmed optional text limited to 500 characters. Blank text is stored as null.
 - A session inherits its effective instructor from its Training Group and does not store a separate instructor identifier.
+- Assigned access, including historical access, follows the Training Group's current primary instructor.
 - Exact duplicate sessions are allowed because schedule-conflict detection is deferred.
 - Training Session mutations use SQL Server `rowversion`.
 - A Training Group date change cannot exclude a Scheduled or Completed session. Cancelled sessions do not block date corrections.

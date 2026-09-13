@@ -13,6 +13,19 @@ This document describes the main V1 business workflows. Exact screen layouts and
 
 Password reset is performed by an administrator. Self-service recovery is deferred.
 
+An Instructor-role account may sign in without a usable Instructor link. Assigned-resource requests resolve the
+current database link: unlinked accounts and accounts linked to inactive Instructors are denied, while active links
+scope all results to the Training Group's current primary Instructor.
+
+## 1A. Link an Instructor account
+
+1. An Administrator selects an Instructor-role staff account.
+2. They select one active, unlinked Instructor record or remove the existing link.
+3. TCMD enforces the optional one-to-one relationship and rejects duplicate or invalid links.
+4. A real link change invalidates the affected account's current authenticated session.
+5. Changing the account away from the Instructor role clears its link; deactivating the Instructor retains the link
+   but revokes assigned access.
+
 ## 2. Manage a student
 
 1. An administrator or staff member opens the student list.
@@ -86,7 +99,8 @@ A session may be created or edited only while its group is Planned or Active. Th
 
 Session date/time uses separate training-center-local date and time values. Location is optional trimmed text up to 500 characters. Duration is derived, exact duplicates are allowed, and the effective instructor is inherited from the Training Group. When group dates change, every non-cancelled session must remain inside the proposed inclusive range; cancelled sessions do not block the correction.
 
-Milestone 9 endpoints are restricted to administrators and staff. Assigned-Instructor reads are deferred until account-to-Instructor linkage can enforce them safely.
+Administrators and staff retain full session access. A linked, active Instructor may read sessions whose current
+parent Training Group is assigned to them, including completed and cancelled history, but cannot mutate sessions.
 
 ## 8. Record attendance
 
@@ -109,6 +123,10 @@ trimmed optional text up to 1,000 characters. Missing attendance means Not Recor
 
 Attendance neither completes sessions nor changes Enrollment status. V1 exposes single-record entry only; bulk entry
 and full correction-history auditing remain deferred.
+
+A linked, active Instructor may view, record, and correct Attendance only where the current parent Training Group is
+assigned to them. The Attendance audit actor remains the authenticated StaffUser identifier. Student Attendance is
+filtered in SQL to assigned groups, and unrelated records are concealed.
 
 ## 9. View operational information
 

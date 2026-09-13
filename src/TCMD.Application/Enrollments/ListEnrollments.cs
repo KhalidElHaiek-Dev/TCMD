@@ -5,12 +5,15 @@ public sealed record EnrollmentListResult<T>(EnrollmentMutationStatus Status, IR
 public sealed class ListTrainingGroupEnrollments(IEnrollmentStore store)
 {
     public async Task<EnrollmentListResult<TrainingGroupEnrollmentDto>> ExecuteAsync(Guid trainingGroupId,
-        CancellationToken cancellationToken)
+        Guid? assignedInstructorId, CancellationToken cancellationToken)
     {
+        if (assignedInstructorId is not null && !await store.IsTrainingGroupAssignedAsync(trainingGroupId,
+                assignedInstructorId.Value, cancellationToken))
+            return new(EnrollmentMutationStatus.TrainingGroupNotFound, null);
         var reference = await store.GetTrainingGroupReferenceAsync(trainingGroupId, cancellationToken);
         if (!reference.Exists)
             return new(EnrollmentMutationStatus.TrainingGroupNotFound, null);
-        var rows = await store.ListByTrainingGroupAsync(trainingGroupId, cancellationToken);
+        var rows = await store.ListByTrainingGroupAsync(trainingGroupId, assignedInstructorId, cancellationToken);
         return new(EnrollmentMutationStatus.Success, rows.Select(TrainingGroupEnrollmentDto.From).ToArray());
     }
 }

@@ -21,6 +21,8 @@ public interface IEnrollmentStore
     Task<EnrollmentStoreSaveStatus> SaveAsync(Enrollment enrollment, byte[] expectedRowVersion,
         CancellationToken cancellationToken);
     Task<IReadOnlyList<GroupEnrollmentProjection>> ListByTrainingGroupAsync(Guid trainingGroupId,
+        Guid? assignedInstructorId, CancellationToken cancellationToken);
+    Task<bool> IsTrainingGroupAssignedAsync(Guid trainingGroupId, Guid instructorId,
         CancellationToken cancellationToken);
     Task<IReadOnlyList<StudentEnrollmentProjection>> ListByStudentAsync(Guid studentId,
         CancellationToken cancellationToken);

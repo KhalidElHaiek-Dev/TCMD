@@ -1,5 +1,6 @@
 using TCMD.Api.Authentication;
 using TCMD.Application.TrainingSessions;
+using System.Security.Claims;
 
 namespace TCMD.Api.TrainingSessions;
 
@@ -10,9 +11,9 @@ public static class TrainingSessionEndpoints
         endpoints.MapPost("/api/training-groups/{groupId:guid}/sessions", CreateAsync)
             .WithTags("Training Sessions").RequireAuthorization(TcmdPolicies.OperationalStaff);
         endpoints.MapGet("/api/training-groups/{groupId:guid}/sessions", ListAsync)
-            .WithTags("Training Sessions").RequireAuthorization(TcmdPolicies.OperationalStaff);
+            .WithTags("Training Sessions").RequireAuthorization(TcmdPolicies.OperationalStaffOrInstructor);
         var sessions = endpoints.MapGroup("/api/training-sessions").WithTags("Training Sessions");
-        sessions.MapGet("/{id:guid}", GetAsync).RequireAuthorization(TcmdPolicies.OperationalStaff);
+        sessions.MapGet("/{id:guid}", GetAsync).RequireAuthorization(TcmdPolicies.OperationalStaffOrInstructor);
         sessions.MapPut("/{id:guid}", UpdateAsync).RequireAuthorization(TcmdPolicies.OperationalStaff);
         sessions.MapPost("/{id:guid}/complete", CompleteAsync).RequireAuthorization(TcmdPolicies.OperationalStaff);
         sessions.MapPost("/{id:guid}/cancel", CancelAsync).RequireAuthorization(TcmdPolicies.OperationalStaff);
@@ -31,17 +32,21 @@ public static class TrainingSessionEndpoints
     }
 
     private static async Task<IResult> ListAsync(Guid groupId, ListTrainingGroupSessions useCase,
-        CancellationToken cancellationToken)
+        ClaimsPrincipal principal, RequestAccessResolver resolver, CancellationToken cancellationToken)
     {
-        var result = await useCase.ExecuteAsync(groupId, cancellationToken);
+        var access = await resolver.ResolveAsync(principal, cancellationToken);
+        if (access is null) return Results.Forbid();
+        var result = await useCase.ExecuteAsync(groupId, access.InstructorId, cancellationToken);
         return result.Status == TrainingSessionMutationStatus.Success
             ? Results.Ok(result.Sessions) : MapError(result.Status);
     }
 
     private static async Task<IResult> GetAsync(Guid id, GetTrainingSessionById useCase,
-        CancellationToken cancellationToken)
+        ClaimsPrincipal principal, RequestAccessResolver resolver, CancellationToken cancellationToken)
     {
-        var session = await useCase.ExecuteAsync(id, cancellationToken);
+        var access = await resolver.ResolveAsync(principal, cancellationToken);
+        if (access is null) return Results.Forbid();
+        var session = await useCase.ExecuteAsync(id, access.InstructorId, cancellationToken);
         return session is null ? Problem(404, "Training session not found") : Results.Ok(session);
     }
 

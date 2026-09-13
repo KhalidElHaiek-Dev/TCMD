@@ -49,13 +49,20 @@ internal sealed class EfEnrollmentStore(TcmdDbContext dbContext) : IEnrollmentSt
     }
 
     public async Task<IReadOnlyList<GroupEnrollmentProjection>> ListByTrainingGroupAsync(Guid trainingGroupId,
-        CancellationToken cancellationToken) => await (
+        Guid? assignedInstructorId, CancellationToken cancellationToken) => await (
             from enrollment in dbContext.Enrollments.AsNoTracking()
             join student in dbContext.Students.AsNoTracking() on enrollment.StudentId equals student.Id
-            where enrollment.TrainingGroupId == trainingGroupId
+            join trainingGroup in dbContext.TrainingGroups.AsNoTracking()
+                on enrollment.TrainingGroupId equals trainingGroup.Id
+            where enrollment.TrainingGroupId == trainingGroupId &&
+                (assignedInstructorId == null || trainingGroup.PrimaryInstructorId == assignedInstructorId)
             orderby student.StudentNumber, enrollment.Id
             select new GroupEnrollmentProjection(enrollment, student.StudentNumber, student.FullName, student.IsActive))
             .ToListAsync(cancellationToken);
+
+    public Task<bool> IsTrainingGroupAssignedAsync(Guid trainingGroupId, Guid instructorId,
+        CancellationToken cancellationToken) => dbContext.TrainingGroups.AsNoTracking().AnyAsync(group =>
+        group.Id == trainingGroupId && group.PrimaryInstructorId == instructorId, cancellationToken);
 
     public async Task<IReadOnlyList<StudentEnrollmentProjection>> ListByStudentAsync(Guid studentId,
         CancellationToken cancellationToken) => await (

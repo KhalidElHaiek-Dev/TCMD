@@ -203,7 +203,23 @@ enrollment date is no later than the session date. Existing attendance remains v
 enrollment, student, group, or session state changes. Instructor access remains deferred until account-to-Instructor
 linkage can enforce assigned-group access.
 
-## Milestone 11: Browser interface integration
+## Milestone 11: Instructor account linking and assigned access
+
+Goal: connect Instructor-role sign-in accounts to Instructor records and safely expose assigned work.
+
+Delivered behavior:
+
+- Administrator-only creation, replacement, and removal of optional one-to-one account links;
+- session invalidation for link changes, link-clearing role changes, and linked Instructor deactivation;
+- SQL-scoped Instructor views of assigned groups, sessions, enrollment rosters, and attendance;
+- assigned-session Attendance entry and correction using the StaffUser as the audit actor; and
+- current-primary-Instructor authorization, historical access transfer, concealment, concurrency, and integration tests.
+
+Instructor accounts may sign in while unlinked or linked to an inactive Instructor, but assigned-resource endpoints
+deny access. Instructor access follows the Training Group's current `PrimaryInstructorId`; V1 does not retain
+per-session Instructor ownership.
+
+## Milestone 12: Browser interface integration
 
 Goal: provide a clear internal interface for the approved workflows.
 
@@ -221,7 +237,7 @@ Completion criteria:
 - server errors are presented safely and clearly; and
 - essential keyboard and accessibility checks pass.
 
-## Milestone 12: V1 hardening and release preparation
+## Milestone 13: V1 hardening and release preparation
 
 Goal: make the completed V1 dependable and supportable.
 

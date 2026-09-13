@@ -16,6 +16,7 @@ public static class StaffAccountEndpoints
         group.MapPatch("/{id:guid}/active", SetActiveAsync);
         group.MapPatch("/{id:guid}/role", ChangeRoleAsync);
         group.MapPost("/{id:guid}/password", ReplacePasswordAsync);
+        group.MapPut("/{accountId}/instructor-link", SetInstructorLinkAsync);
         return endpoints;
     }
 
@@ -59,6 +60,18 @@ public static class StaffAccountEndpoints
         return MapResult(await accounts.ReplacePasswordAsync(id, request.NewPassword, cancellationToken), "newPassword");
     }
 
+    private static async Task<IResult> SetInstructorLinkAsync(string accountId, SetInstructorLinkRequest request,
+        StaffAccountAdministration accounts, CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (!Guid.TryParse(accountId, out var id) || id == Guid.Empty)
+            errors["accountId"] = ["A valid accountId is required."];
+        if (request.InstructorId == Guid.Empty)
+            errors["instructorId"] = ["instructorId cannot be empty."];
+        return errors.Count > 0 ? Results.ValidationProblem(errors)
+            : MapResult(await accounts.SetInstructorLinkAsync(id, request.InstructorId, cancellationToken));
+    }
+
     private static IResult MapResult(StaffAccountResult result, string passwordField = "password") =>
         result.Succeeded ? Results.Ok(result.Account) : MapError(result.Error, passwordField);
 
@@ -71,6 +84,11 @@ public static class StaffAccountEndpoints
         StaffAccountError.InvalidRole => Results.ValidationProblem(new Dictionary<string, string[]> { ["role"] = ["Role must be Administrator, Staff, or Instructor."] }),
         StaffAccountError.CannotDeactivateSelf => Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Administrators cannot deactivate their own account."),
         StaffAccountError.LastActiveAdministrator => Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "The last active administrator cannot be deactivated or demoted."),
+        StaffAccountError.InstructorNotFound => Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Instructor not found"),
+        StaffAccountError.AccountNotInstructor => Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Only an Instructor-role account can be linked to an instructor."),
+        StaffAccountError.InstructorInactive => Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "An inactive instructor cannot be linked to an account."),
+        StaffAccountError.InstructorAlreadyLinked => Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Instructor is already linked to another account."),
+        StaffAccountError.ConcurrencyConflict => Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Staff account was changed by another user. Reload and try again."),
         _ => Results.Problem(statusCode: StatusCodes.Status500InternalServerError)
     };
     private static IResult NotFound() => Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Staff account not found");
@@ -91,3 +109,4 @@ public sealed record CreateStaffAccountHttpRequest(string? UserName, string? Dis
 public sealed record SetAccountActiveRequest(bool IsActive);
 public sealed record ChangeAccountRoleRequest(string? Role);
 public sealed record ReplaceAccountPasswordRequest(string? NewPassword);
+public sealed record SetInstructorLinkRequest(Guid? InstructorId);

@@ -11,7 +11,8 @@ public static class StaffRoles
     };
 }
 
-public sealed record StaffAccountDto(Guid Id, string UserName, string DisplayName, string Role, bool IsActive);
+public sealed record StaffAccountDto(Guid Id, string UserName, string DisplayName, string Role, bool IsActive,
+    Guid? InstructorId);
 
 public sealed record CreateStaffAccountRequest(string UserName, string DisplayName, string Password, string Role);
 
@@ -24,7 +25,12 @@ public enum StaffAccountError
     InvalidPassword,
     InvalidRole,
     CannotDeactivateSelf,
-    LastActiveAdministrator
+    LastActiveAdministrator,
+    InstructorNotFound,
+    AccountNotInstructor,
+    InstructorInactive,
+    InstructorAlreadyLinked,
+    ConcurrencyConflict
 }
 
 public sealed record StaffAccountResult(StaffAccountDto? Account, StaffAccountError Error)
@@ -42,6 +48,8 @@ public interface IStaffAccountStore
     Task<StaffAccountResult> SetActiveAsync(Guid id, bool isActive, Guid currentUserId, CancellationToken cancellationToken);
     Task<StaffAccountResult> ChangeRoleAsync(Guid id, string role, CancellationToken cancellationToken);
     Task<StaffAccountResult> ReplacePasswordAsync(Guid id, string newPassword, CancellationToken cancellationToken);
+    Task<StaffAccountResult> SetInstructorLinkAsync(Guid id, Guid? instructorId,
+        CancellationToken cancellationToken);
 }
 
 public sealed class StaffAccountAdministration(IStaffAccountStore store)
@@ -63,4 +71,7 @@ public sealed class StaffAccountAdministration(IStaffAccountStore store)
 
     public Task<StaffAccountResult> ReplacePasswordAsync(Guid id, string newPassword, CancellationToken cancellationToken) =>
         store.ReplacePasswordAsync(id, newPassword, cancellationToken);
+
+    public Task<StaffAccountResult> SetInstructorLinkAsync(Guid id, Guid? instructorId,
+        CancellationToken cancellationToken) => store.SetInstructorLinkAsync(id, instructorId, cancellationToken);
 }

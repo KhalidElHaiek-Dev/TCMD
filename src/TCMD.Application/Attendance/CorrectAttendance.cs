@@ -7,15 +7,15 @@ public sealed record CorrectAttendanceRequest(AttendanceStatus Status, string? C
 public sealed class CorrectAttendance(IAttendanceStore store, ITrainingCenterClock clock)
 {
     public async Task<AttendanceMutationResult> ExecuteAsync(Guid id, CorrectAttendanceRequest request,
-        Guid staffUserId, CancellationToken cancellationToken)
+        Guid staffUserId, Guid? assignedInstructorId, CancellationToken cancellationToken)
     {
-        var attendance = await store.GetForUpdateAsync(id, cancellationToken);
+        var attendance = await store.GetForUpdateAsync(id, assignedInstructorId, cancellationToken);
         if (attendance is null) return AttendanceMutationResult.Error(AttendanceMutationStatus.AttendanceNotFound);
         if (attendance.RowVersion is null || !attendance.RowVersion.SequenceEqual(request.RowVersion))
             return AttendanceMutationResult.Error(AttendanceMutationStatus.ConcurrencyConflict);
         var changed = attendance.Correct(request.Status, request.CorrectionNote, staffUserId, clock.GetUtcNow());
-        return changed
-            ? AttendanceMutationResult.FromStore(await store.SaveAsync(attendance, request.RowVersion, cancellationToken), attendance)
-            : AttendanceMutationResult.Success(attendance);
+        if (!changed && assignedInstructorId is null) return AttendanceMutationResult.Success(attendance);
+        return AttendanceMutationResult.FromStore(await store.SaveAsync(attendance, request.RowVersion,
+            assignedInstructorId, cancellationToken), attendance);
     }
 }

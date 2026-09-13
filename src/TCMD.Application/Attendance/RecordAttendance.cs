@@ -9,9 +9,9 @@ public sealed record RecordAttendanceRequest(Guid EnrollmentId, AttendanceStatus
 public sealed class RecordAttendance(IAttendanceStore store, ITrainingCenterClock clock)
 {
     public async Task<AttendanceMutationResult> ExecuteAsync(Guid sessionId, RecordAttendanceRequest request,
-        Guid staffUserId, CancellationToken cancellationToken)
+        Guid staffUserId, Guid? assignedInstructorId, CancellationToken cancellationToken)
     {
-        var session = await store.GetSessionReferenceAsync(sessionId, cancellationToken);
+        var session = await store.GetSessionReferenceAsync(sessionId, assignedInstructorId, cancellationToken);
         if (!session.Exists) return AttendanceMutationResult.Error(AttendanceMutationStatus.SessionNotFound);
         var enrollment = await store.GetEnrollmentReferenceAsync(request.EnrollmentId, cancellationToken);
         if (!enrollment.Exists) return AttendanceMutationResult.Error(AttendanceMutationStatus.EnrollmentNotFound);
@@ -30,7 +30,8 @@ public sealed class RecordAttendance(IAttendanceStore store, ITrainingCenterCloc
 
         var attendance = AttendanceRecord.Create(request.EnrollmentId, sessionId, request.Status, staffUserId,
             clock.GetUtcNow());
-        return AttendanceMutationResult.FromStore(await store.AddAsync(attendance, cancellationToken), attendance);
+        return AttendanceMutationResult.FromStore(await store.AddAsync(attendance, assignedInstructorId,
+            cancellationToken), attendance);
     }
 
     private static bool HasStarted(AttendanceSessionReference session, DateTime localNow) =>

@@ -1,6 +1,7 @@
 using TCMD.Api.Authentication;
 using TCMD.Application.TrainingGroups;
 using TCMD.Domain.TrainingGroups;
+using System.Security.Claims;
 
 namespace TCMD.Api.TrainingGroups;
 
@@ -10,8 +11,8 @@ public static class TrainingGroupEndpoints
     {
         var group = endpoints.MapGroup("/api/training-groups").WithTags("Training Groups");
         group.MapPost("/", CreateAsync).RequireAuthorization(TcmdPolicies.OperationalStaff);
-        group.MapGet("/", SearchAsync).RequireAuthorization(TcmdPolicies.OperationalStaff);
-        group.MapGet("/{id:guid}", GetByIdAsync).RequireAuthorization(TcmdPolicies.OperationalStaff);
+        group.MapGet("/", SearchAsync).RequireAuthorization(TcmdPolicies.OperationalStaffOrInstructor);
+        group.MapGet("/{id:guid}", GetByIdAsync).RequireAuthorization(TcmdPolicies.OperationalStaffOrInstructor);
         group.MapPut("/{id:guid}", UpdateAsync).RequireAuthorization(TcmdPolicies.OperationalStaff);
         group.MapPost("/{id:guid}/activate", ActivateAsync).RequireAuthorization(TcmdPolicies.OperationalStaff);
         group.MapPost("/{id:guid}/complete", CompleteAsync).RequireAuthorization(TcmdPolicies.OperationalStaff);
@@ -34,7 +35,7 @@ public static class TrainingGroupEndpoints
 
     private static async Task<IResult> SearchAsync(string? search, string? status, Guid? courseId,
         Guid? primaryInstructorId, bool? hasPrimaryInstructor, SearchTrainingGroups useCase,
-        CancellationToken cancellationToken)
+        ClaimsPrincipal principal, RequestAccessResolver accessResolver, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         TrainingGroupStatus? parsedStatus = null;
@@ -48,14 +49,19 @@ public static class TrainingGroupEndpoints
         if (primaryInstructorId == Guid.Empty) errors["primaryInstructorId"] = ["primaryInstructorId cannot be empty."];
         if (primaryInstructorId is not null && hasPrimaryInstructor == false)
             errors["hasPrimaryInstructor"] = ["hasPrimaryInstructor cannot be false when primaryInstructorId is supplied."];
-        return errors.Count > 0 ? Results.ValidationProblem(errors) : Results.Ok(await useCase.ExecuteAsync(search,
-            parsedStatus, courseId, primaryInstructorId, hasPrimaryInstructor, cancellationToken));
+        if (errors.Count > 0) return Results.ValidationProblem(errors);
+        var access = await accessResolver.ResolveAsync(principal, cancellationToken);
+        if (access is null) return Results.Forbid();
+        return Results.Ok(await useCase.ExecuteAsync(search, parsedStatus, courseId, primaryInstructorId,
+            hasPrimaryInstructor, access.InstructorId, cancellationToken));
     }
 
-    private static async Task<IResult> GetByIdAsync(Guid id, GetTrainingGroupById useCase,
-        CancellationToken cancellationToken)
+    private static async Task<IResult> GetByIdAsync(Guid id, GetTrainingGroupById useCase, ClaimsPrincipal principal,
+        RequestAccessResolver accessResolver, CancellationToken cancellationToken)
     {
-        var group = await useCase.ExecuteAsync(id, cancellationToken);
+        var access = await accessResolver.ResolveAsync(principal, cancellationToken);
+        if (access is null) return Results.Forbid();
+        var group = await useCase.ExecuteAsync(id, access.InstructorId, cancellationToken);
         return group is null ? NotFound() : Results.Ok(group);
     }
 

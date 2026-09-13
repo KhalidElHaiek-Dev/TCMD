@@ -4,7 +4,7 @@ public enum AttendanceMutationStatus
 {
     Success, EnrollmentNotFound, SessionNotFound, AttendanceNotFound, DifferentTrainingGroup,
     DuplicateAttendance, EnrollmentInactive, EnrollmentAfterSession, SessionNotStarted, SessionCancelled,
-    ConcurrencyConflict
+    ConcurrencyConflict, AssignmentChanged
 }
 
 public sealed record AttendanceMutationResult(AttendanceMutationStatus Status, AttendanceDto? Attendance = null)
@@ -18,6 +18,7 @@ public sealed record AttendanceMutationResult(AttendanceMutationStatus Status, A
             AttendanceStoreSaveStatus.Success => Success(attendance),
             AttendanceStoreSaveStatus.DuplicateAttendance => Error(AttendanceMutationStatus.DuplicateAttendance),
             AttendanceStoreSaveStatus.ConcurrencyConflict => Error(AttendanceMutationStatus.ConcurrencyConflict),
+            AttendanceStoreSaveStatus.AssignmentChanged => Error(AttendanceMutationStatus.AssignmentChanged),
             _ => throw new ArgumentOutOfRangeException(nameof(status))
         };
 }

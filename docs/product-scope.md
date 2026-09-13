@@ -57,6 +57,7 @@ Email is optional. Additional personal and contact fields are outside the minimu
 - View the groups assigned to an instructor.
 
 An instructor record does not require a staff sign-in account. It may optionally link to one account.
+Only Administrators manage the optional one-to-one link, and a linked account must have the Instructor role.
 
 ### Courses
 
@@ -119,6 +120,11 @@ Correction notes are trimmed optional text limited to 1,000 characters.
 ### Basic operational views
 
 V1 may show simple lists and counts needed for the workflows above. Examples include active students, upcoming sessions, group membership, and attendance by session. Advanced analytics and custom report building are postponed.
+
+Linked, active Instructor accounts see only groups currently assigned to their Instructor record and those groups'
+sessions, compact enrollment rosters, and Attendance. Compact Student data contains identifier, student number, name,
+and active status; Student phone and email remain unavailable. Current primary-Instructor assignment also controls
+historical access because V1 has no per-session Instructor history.
 
 ## Explicitly postponed
 

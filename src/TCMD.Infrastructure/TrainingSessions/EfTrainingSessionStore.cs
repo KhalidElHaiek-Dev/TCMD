@@ -22,14 +22,29 @@ internal sealed class EfTrainingSessionStore(TcmdDbContext dbContext) : ITrainin
     public Task<TrainingSession?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         dbContext.TrainingSessions.AsNoTracking().SingleOrDefaultAsync(session => session.Id == id, cancellationToken);
 
+    public Task<TrainingSession?> GetAssignedByIdAsync(Guid id, Guid instructorId,
+        CancellationToken cancellationToken) => (from session in dbContext.TrainingSessions.AsNoTracking()
+        join trainingGroup in dbContext.TrainingGroups.AsNoTracking() on session.TrainingGroupId equals trainingGroup.Id
+        where session.Id == id && trainingGroup.PrimaryInstructorId == instructorId
+        select session).SingleOrDefaultAsync(cancellationToken);
+
     public Task<TrainingSession?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         dbContext.TrainingSessions.SingleOrDefaultAsync(session => session.Id == id, cancellationToken);
 
     public async Task<IReadOnlyList<TrainingSession>> ListByTrainingGroupAsync(Guid groupId,
-        CancellationToken cancellationToken) => await dbContext.TrainingSessions.AsNoTracking()
-        .Where(session => session.TrainingGroupId == groupId)
+        Guid? assignedInstructorId, CancellationToken cancellationToken) => await (
+        from session in dbContext.TrainingSessions.AsNoTracking()
+        join trainingGroup in dbContext.TrainingGroups.AsNoTracking()
+            on session.TrainingGroupId equals trainingGroup.Id
+        where session.TrainingGroupId == groupId &&
+            (assignedInstructorId == null || trainingGroup.PrimaryInstructorId == assignedInstructorId)
+        select session)
         .OrderBy(session => session.SessionDate).ThenBy(session => session.StartTime)
         .ThenBy(session => session.EndTime).ThenBy(session => session.Id).ToListAsync(cancellationToken);
+
+    public Task<bool> IsTrainingGroupAssignedAsync(Guid groupId, Guid instructorId,
+        CancellationToken cancellationToken) => dbContext.TrainingGroups.AsNoTracking().AnyAsync(group =>
+        group.Id == groupId && group.PrimaryInstructorId == instructorId, cancellationToken);
 
     public async Task<TrainingSessionStoreSaveStatus> AddAsync(TrainingSession session,
         CancellationToken cancellationToken)

@@ -4,7 +4,7 @@ using TCMD.Domain.TrainingSessions;
 
 namespace TCMD.Application.Attendance;
 
-public enum AttendanceStoreSaveStatus { Success, DuplicateAttendance, ConcurrencyConflict }
+public enum AttendanceStoreSaveStatus { Success, DuplicateAttendance, ConcurrencyConflict, AssignmentChanged }
 public sealed record AttendanceEnrollmentReference(bool Exists, Guid EnrollmentId, Guid StudentId, Guid TrainingGroupId,
     DateOnly EnrollmentDate, EnrollmentStatus Status);
 public sealed record AttendanceSessionReference(bool Exists, Guid TrainingGroupId, DateOnly SessionDate,
@@ -22,18 +22,23 @@ public sealed record GroupAttendanceProjection(AttendanceRecord Attendance, Enro
 public interface IAttendanceStore
 {
     Task<AttendanceEnrollmentReference> GetEnrollmentReferenceAsync(Guid id, CancellationToken cancellationToken);
-    Task<AttendanceSessionReference> GetSessionReferenceAsync(Guid id, CancellationToken cancellationToken);
+    Task<AttendanceSessionReference> GetSessionReferenceAsync(Guid id, Guid? assignedInstructorId,
+        CancellationToken cancellationToken);
     Task<bool> AttendanceExistsAsync(Guid enrollmentId, Guid sessionId, CancellationToken cancellationToken);
-    Task<AttendanceRecord?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken);
-    Task<AttendanceStoreSaveStatus> AddAsync(AttendanceRecord attendance, CancellationToken cancellationToken);
+    Task<AttendanceRecord?> GetForUpdateAsync(Guid id, Guid? assignedInstructorId,
+        CancellationToken cancellationToken);
+    Task<AttendanceStoreSaveStatus> AddAsync(AttendanceRecord attendance, Guid? assignedInstructorId,
+        CancellationToken cancellationToken);
     Task<AttendanceStoreSaveStatus> SaveAsync(AttendanceRecord attendance, byte[] expectedRowVersion,
-        CancellationToken cancellationToken);
+        Guid? assignedInstructorId, CancellationToken cancellationToken);
     Task<IReadOnlyList<SessionAttendanceProjection>> ListBySessionAsync(Guid sessionId,
+        Guid? assignedInstructorId, CancellationToken cancellationToken);
+    Task<bool> StudentExistsAsync(Guid studentId, Guid? assignedInstructorId,
         CancellationToken cancellationToken);
-    Task<bool> StudentExistsAsync(Guid studentId, CancellationToken cancellationToken);
     Task<IReadOnlyList<StudentAttendanceProjection>> ListByStudentAsync(Guid studentId,
+        Guid? assignedInstructorId, CancellationToken cancellationToken);
+    Task<bool> TrainingGroupExistsAsync(Guid groupId, Guid? assignedInstructorId,
         CancellationToken cancellationToken);
-    Task<bool> TrainingGroupExistsAsync(Guid groupId, CancellationToken cancellationToken);
     Task<IReadOnlyList<GroupAttendanceProjection>> ListByTrainingGroupAsync(Guid groupId,
-        CancellationToken cancellationToken);
+        Guid? assignedInstructorId, CancellationToken cancellationToken);
 }

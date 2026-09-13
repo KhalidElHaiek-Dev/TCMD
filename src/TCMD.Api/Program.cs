@@ -78,6 +78,7 @@ builder.Services.AddScoped<UpdateTrainingSession>();
 builder.Services.AddScoped<CompleteTrainingSession>();
 builder.Services.AddScoped<CancelTrainingSession>();
 builder.Services.AddScoped<StaffAccountAdministration>();
+builder.Services.AddScoped<RequestAccessResolver>();
 var trainingCenterTimeZone = builder.Configuration["TrainingCenter:TimeZone"]
     ?? throw new InvalidOperationException("TrainingCenter:TimeZone is not configured.");
 builder.Services.AddInfrastructure(connectionString, trainingCenterTimeZone);
@@ -123,6 +124,8 @@ builder.Services.AddAuthorization(options =>
         .RequireAuthenticatedUser().Build();
     options.AddPolicy(TcmdPolicies.OperationalStaff, policy => policy.RequireRole("Administrator", "Staff"));
     options.AddPolicy(TcmdPolicies.Administrators, policy => policy.RequireRole("Administrator"));
+    options.AddPolicy(TcmdPolicies.OperationalStaffOrInstructor,
+        policy => policy.RequireRole("Administrator", "Staff", "Instructor"));
 });
 
 var app = builder.Build();

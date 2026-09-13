@@ -77,7 +77,10 @@ internal sealed class IdentityStaffAccountStore(
                 throw new InvalidOperationException("Staff account role could not be changed.");
             if (!(await userManager.AddToRoleAsync(user, role)).Succeeded)
                 throw new InvalidOperationException("Staff account role could not be changed.");
-            if (!(await userManager.UpdateSecurityStampAsync(user)).Succeeded)
+            if (role != StaffRoles.Instructor) user.InstructorId = null;
+            var stampResult = await userManager.UpdateSecurityStampAsync(user);
+            if (HasConcurrencyError(stampResult)) return StaffAccountResult.Failure(StaffAccountError.ConcurrencyConflict);
+            if (!stampResult.Succeeded)
                 throw new InvalidOperationException("Staff account role could not be changed.");
             return StaffAccountResult.Success(await ToDtoAsync(user));
         });
@@ -94,10 +97,46 @@ internal sealed class IdentityStaffAccountStore(
         throw new InvalidOperationException("Staff account password could not be replaced.");
     }
 
+    public Task<StaffAccountResult> SetInstructorLinkAsync(Guid id, Guid? instructorId,
+        CancellationToken cancellationToken) => ExecuteTransactionAsync(async () =>
+    {
+        var user = await userManager.Users.SingleOrDefaultAsync(candidate => candidate.Id == id, cancellationToken);
+        if (user is null) return StaffAccountResult.Failure(StaffAccountError.NotFound);
+        var roles = await userManager.GetRolesAsync(user);
+        if (roles.Single() != StaffRoles.Instructor)
+            return StaffAccountResult.Failure(StaffAccountError.AccountNotInstructor);
+        if (user.InstructorId == instructorId) return StaffAccountResult.Success(await ToDtoAsync(user));
+
+        if (instructorId is not null)
+        {
+            var instructor = await dbContext.Instructors.AsNoTracking()
+                .Where(candidate => candidate.Id == instructorId)
+                .Select(candidate => new { candidate.IsActive })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (instructor is null) return StaffAccountResult.Failure(StaffAccountError.InstructorNotFound);
+            if (!instructor.IsActive) return StaffAccountResult.Failure(StaffAccountError.InstructorInactive);
+            if (await dbContext.Users.AsNoTracking().AnyAsync(candidate =>
+                    candidate.InstructorId == instructorId && candidate.Id != id, cancellationToken))
+                return StaffAccountResult.Failure(StaffAccountError.InstructorAlreadyLinked);
+        }
+
+        user.InstructorId = instructorId;
+        var updated = await userManager.UpdateSecurityStampAsync(user);
+        if (HasConcurrencyError(updated)) return StaffAccountResult.Failure(StaffAccountError.ConcurrencyConflict);
+        if (!updated.Succeeded)
+        {
+            if (updated.Errors.Any(error => error.Code == "DuplicateInstructorLink"))
+                return StaffAccountResult.Failure(StaffAccountError.InstructorAlreadyLinked);
+            throw new InvalidOperationException("Instructor account link could not be changed.");
+        }
+        return StaffAccountResult.Success(await ToDtoAsync(user));
+    }, mapDuplicateInstructorLink: true);
+
     private async Task<StaffAccountDto> ToDtoAsync(StaffUser user)
     {
         var roles = await userManager.GetRolesAsync(user);
-        return new StaffAccountDto(user.Id, user.UserName!, user.DisplayName, roles.Single(), user.IsActive);
+        return new StaffAccountDto(user.Id, user.UserName!, user.DisplayName, roles.Single(), user.IsActive,
+            user.InstructorId);
     }
 
     private Task<int> CountActiveAdministratorsAsync(CancellationToken cancellationToken) =>
@@ -110,15 +149,27 @@ internal sealed class IdentityStaffAccountStore(
     private static bool HasPasswordError(IdentityResult result) =>
         result.Errors.Any(error => error.Code.StartsWith("Password", StringComparison.Ordinal));
 
-    private async Task<StaffAccountResult> ExecuteTransactionAsync(Func<Task<StaffAccountResult>> operation)
+    private static bool HasConcurrencyError(IdentityResult result) =>
+        result.Errors.Any(error => error.Code == nameof(IdentityErrorDescriber.ConcurrencyFailure));
+
+    private async Task<StaffAccountResult> ExecuteTransactionAsync(Func<Task<StaffAccountResult>> operation,
+        bool mapDuplicateInstructorLink = false)
     {
         var strategy = dbContext.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {
-            await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
-            var result = await operation();
-            if (result.Succeeded) await transaction.CommitAsync();
-            return result;
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead);
+            try
+            {
+                var result = await operation();
+                if (result.Succeeded) await transaction.CommitAsync();
+                return result;
+            }
+            catch (DbUpdateException exception) when (mapDuplicateInstructorLink &&
+                exception.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 })
+            {
+                return StaffAccountResult.Failure(StaffAccountError.InstructorAlreadyLinked);
+            }
         });
     }
 }

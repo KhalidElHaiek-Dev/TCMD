@@ -52,10 +52,10 @@ An instructor has limited access related to assigned work and can:
 
 Instructors cannot update student details. They cannot create, reschedule, or cancel sessions. They cannot see groups or students that are not assigned to them.
 
-Milestone 9 does not yet expose session reads to authenticated Instructor-role accounts. The optional StaffUser-to-Instructor link is not implemented, so all current Training Session endpoints require the Operational Staff policy. Assigned-session reads remain deferred until that link can enforce the approved restriction without exposing other instructors' records.
-
-Milestone 10 likewise restricts all Attendance endpoints to the Operational Staff policy. Instructor Attendance access
-remains deferred until account-to-Instructor linkage supports enforceable assigned-group authorization.
+An Instructor-role account resolves its current linked, active Instructor record on each assigned-resource request.
+It can read assigned groups, sessions, enrollment rosters, and Attendance, and can record or correct Attendance for
+assigned sessions. It cannot mutate groups, sessions, enrollments, Students, Instructors, or Courses. Unrelated
+resources return 404 so their existence is not disclosed.
 
 ## Staff accounts and instructor records
 
@@ -64,6 +64,15 @@ A staff account represents permission to sign in. An instructor record represent
 These are separate concepts because an instructor might exist in scheduling records without being allowed to sign in. A staff account may optionally be linked to one instructor record.
 
 An instructor does not automatically receive an account. A staff account may optionally link to one instructor record, and an instructor record may link to at most one staff account.
+
+Only Administrators manage links through Staff Account administration, and only Instructor-role accounts may be
+linked. A new link requires an active Instructor. Link changes invalidate the account's current session. Changing a
+linked account away from the Instructor role clears the link. Deactivating a linked Instructor retains the link and
+StaffUser active status, invalidates the current session, and denies assigned access until the Instructor is active.
+
+Instructor access always follows the Training Group's current primary Instructor. Reassignment immediately transfers
+access to the group's current and historical sessions, enrollment rosters, and Attendance. V1 does not preserve
+historical per-session Instructor ownership.
 
 ## Basic access table
 

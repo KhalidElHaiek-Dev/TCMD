@@ -15,16 +15,21 @@ internal sealed class EfTrainingGroupStore(TcmdDbContext dbContext) : ITrainingG
         return await SaveChangesAsync(group, cancellationToken);
     }
 
-    public Task<TrainingGroup?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
-        dbContext.TrainingGroups.AsNoTracking().SingleOrDefaultAsync(group => group.Id == id, cancellationToken);
+    public Task<TrainingGroup?> GetByIdAsync(Guid id, Guid? assignedInstructorId,
+        CancellationToken cancellationToken) => dbContext.TrainingGroups.AsNoTracking().SingleOrDefaultAsync(group =>
+        group.Id == id && (assignedInstructorId == null || group.PrimaryInstructorId == assignedInstructorId),
+        cancellationToken);
 
     public Task<TrainingGroup?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         dbContext.TrainingGroups.SingleOrDefaultAsync(group => group.Id == id, cancellationToken);
 
     public async Task<IReadOnlyList<TrainingGroup>> SearchAsync(string? search, TrainingGroupStatus? status,
-        Guid? courseId, Guid? primaryInstructorId, bool? hasPrimaryInstructor, CancellationToken cancellationToken)
+        Guid? courseId, Guid? primaryInstructorId, bool? hasPrimaryInstructor, Guid? assignedInstructorId,
+        CancellationToken cancellationToken)
     {
         var query = dbContext.TrainingGroups.AsNoTracking();
+        if (assignedInstructorId is not null)
+            query = query.Where(group => group.PrimaryInstructorId == assignedInstructorId);
         if (search is not null) query = query.Where(group => group.Name.Contains(search));
         if (status is not null) query = query.Where(group => group.Status == status);
         if (courseId is not null) query = query.Where(group => group.CourseId == courseId);

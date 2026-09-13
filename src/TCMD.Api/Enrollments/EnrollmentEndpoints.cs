@@ -1,5 +1,6 @@
 using TCMD.Api.Authentication;
 using TCMD.Application.Enrollments;
+using System.Security.Claims;
 
 namespace TCMD.Api.Enrollments;
 
@@ -10,7 +11,7 @@ public static class EnrollmentEndpoints
         endpoints.MapPost("/api/training-groups/{groupId:guid}/enrollments", CreateAsync)
             .WithTags("Enrollments").RequireAuthorization(TcmdPolicies.OperationalStaff);
         endpoints.MapGet("/api/training-groups/{groupId:guid}/enrollments", ListByGroupAsync)
-            .WithTags("Enrollments").RequireAuthorization(TcmdPolicies.OperationalStaff);
+            .WithTags("Enrollments").RequireAuthorization(TcmdPolicies.OperationalStaffOrInstructor);
         endpoints.MapGet("/api/students/{studentId:guid}/enrollments", ListByStudentAsync)
             .WithTags("Enrollments").RequireAuthorization(TcmdPolicies.OperationalStaff);
         var commands = endpoints.MapGroup("/api/enrollments").WithTags("Enrollments");
@@ -34,12 +35,14 @@ public static class EnrollmentEndpoints
     }
 
     private static async Task<IResult> ListByGroupAsync(Guid groupId, ListTrainingGroupEnrollments useCase,
-        CancellationToken cancellationToken)
+        ClaimsPrincipal principal, RequestAccessResolver resolver, CancellationToken cancellationToken)
     {
         if (groupId == Guid.Empty)
             return Results.ValidationProblem(new Dictionary<string, string[]>
                 { ["groupId"] = ["A valid groupId is required."] });
-        var result = await useCase.ExecuteAsync(groupId, cancellationToken);
+        var access = await resolver.ResolveAsync(principal, cancellationToken);
+        if (access is null) return Results.Forbid();
+        var result = await useCase.ExecuteAsync(groupId, access.InstructorId, cancellationToken);
         return result.Status == EnrollmentMutationStatus.Success
             ? Results.Ok(result.Enrollments) : MapError(result.Status);
     }

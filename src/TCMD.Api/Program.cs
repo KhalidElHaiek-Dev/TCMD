@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using TCMD.Api.Authentication;
@@ -34,6 +35,14 @@ builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
         context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+});
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+    options.Cookie.Name = "TCMD.Antiforgery";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Strict;
 });
 builder.Services.AddOpenApi();
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
@@ -133,13 +142,40 @@ var app = builder.Build();
 await BootstrapAdministrator.InitializeAsync(app.Services, app.Configuration);
 
 app.UseExceptionHandler();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseStatusCodePages(async statusCodeContext =>
 {
     await Results.Problem(statusCode: statusCodeContext.HttpContext.Response.StatusCode)
         .ExecuteAsync(statusCodeContext.HttpContext);
 });
 app.UseAuthentication();
+app.UseAntiforgery();
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api")
+        && !HttpMethods.IsGet(context.Request.Method)
+        && !HttpMethods.IsHead(context.Request.Method)
+        && !HttpMethods.IsOptions(context.Request.Method))
+    {
+        try
+        {
+            await context.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(context);
+        }
+        catch (AntiforgeryValidationException)
+        {
+            await Results.Problem(statusCode: StatusCodes.Status400BadRequest,
+                title: "Invalid antiforgery token",
+                detail: "Refresh the page and try again.").ExecuteAsync(context);
+            return;
+        }
+    }
+
+    await next(context);
+});
 app.UseAuthorization();
+app.MapStaticAssets().AllowAnonymous();
+app.MapGet("/", () => Results.Redirect("/index.html")).AllowAnonymous();
 app.MapOpenApi().AllowAnonymous();
 app.MapHealthChecks("/health", new HealthCheckOptions { ResponseWriter = WriteHealthResponseAsync }).AllowAnonymous();
 app.MapAuthenticationEndpoints();

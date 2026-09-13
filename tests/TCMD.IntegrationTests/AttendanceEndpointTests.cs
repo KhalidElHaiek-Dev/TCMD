@@ -213,7 +213,8 @@ public sealed class AttendanceEndpointTests(TcmdApiFactory factory) : IAsyncLife
         using var staff = await AuthenticatedClient.CreateAsync(factory);
         var setup = await CreateSetupAsync(staff, "Authorization");
         var attendance = await RecordAsync(staff, setup);
-        using var anonymous = factory.CreateClient(new() { AllowAutoRedirect = false });
+        using var anonymous = await AuthenticatedClient.CreateWithAntiforgeryAsync(factory,
+            new() { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
         using var instructor = await AuthenticatedClient.CreateAsync(factory, "Instructor");
         Func<HttpClient, Task<HttpResponseMessage>>[] calls =
         [

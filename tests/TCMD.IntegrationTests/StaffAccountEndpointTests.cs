@@ -110,14 +110,12 @@ public sealed class StaffAccountEndpointTests(TcmdApiFactory factory)
 
     private async Task<HttpClient> LoginAsync(string userName, string password)
     {
-        var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
-        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync("/api/auth/login", new { userName, password })).StatusCode);
-        return client;
+        return await AuthenticatedClient.LoginAsync(factory, userName, password);
     }
 
     private async Task<HttpResponseMessage> LoginResponseAsync(string userName, string password)
     {
-        var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        var client = await AuthenticatedClient.CreateWithAntiforgeryAsync(factory);
         return await client.PostAsJsonAsync("/api/auth/login", new { userName, password });
     }
 

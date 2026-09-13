@@ -192,7 +192,8 @@ public sealed class EnrollmentEndpointTests(TcmdApiFactory factory)
         var student = await CreateStudentAsync(staff, "Authorization Student");
         var group = await CreateGroupAsync(staff, "Authorization Group");
         var enrollment = await CreateEnrollmentAsync(staff, group.Id, student.Id);
-        using var anonymous = factory.CreateClient(new() { AllowAutoRedirect = false });
+        using var anonymous = await AuthenticatedClient.CreateWithAntiforgeryAsync(factory,
+            new() { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
         using var instructor = await AuthenticatedClient.CreateAsync(factory, "Instructor");
         var requests = new Func<HttpClient, Task<HttpResponseMessage>>[]
         {

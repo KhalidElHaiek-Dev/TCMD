@@ -17,7 +17,7 @@ public sealed class AuthenticationEndpointTests(TcmdApiFactory factory)
     public async Task Login_WithActiveAccountForEachRole_ReturnsNoContent(string role)
     {
         var (userName, password) = await AuthenticatedClient.CreateAccountAsync(factory, role, true);
-        using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        using var client = await AuthenticatedClient.CreateWithAntiforgeryAsync(factory);
         Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync("/api/auth/login", new { userName, password })).StatusCode);
     }
 
@@ -25,7 +25,7 @@ public sealed class AuthenticationEndpointTests(TcmdApiFactory factory)
     public async Task LoginFailures_AreGeneric_AndLockOutAfterFiveAttempts()
     {
         var (userName, password) = await AuthenticatedClient.CreateAccountAsync(factory, "Staff", true);
-        using var client = factory.CreateClient();
+        using var client = await AuthenticatedClient.CreateWithAntiforgeryAsync(factory);
         var unknown = await client.PostAsJsonAsync("/api/auth/login", new { userName = "missing", password });
         var incorrect = await client.PostAsJsonAsync("/api/auth/login", new { userName, password = "Wrongpass1" });
         Assert.Equal(HttpStatusCode.Unauthorized, unknown.StatusCode);
@@ -40,7 +40,7 @@ public sealed class AuthenticationEndpointTests(TcmdApiFactory factory)
     public async Task InactiveAccount_IsRejected_AndLogoutEndsSession()
     {
         var (inactiveName, password) = await AuthenticatedClient.CreateAccountAsync(factory, "Staff", false);
-        using var inactive = factory.CreateClient();
+        using var inactive = await AuthenticatedClient.CreateWithAntiforgeryAsync(factory);
         Assert.Equal(HttpStatusCode.Unauthorized, (await inactive.PostAsJsonAsync("/api/auth/login", new { userName = inactiveName, password })).StatusCode);
         using var client = await AuthenticatedClient.CreateAsync(factory);
         Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsync("/api/auth/logout", null)).StatusCode);

@@ -167,7 +167,8 @@ public sealed class TrainingSessionEndpointTests(TcmdApiFactory factory)
         using var staff = await AuthenticatedClient.CreateAsync(factory, "Staff");
         var group = await CreateGroupAsync(staff, "Authorization");
         var session = await CreateSessionAsync(staff, group.Id, new(2026, 9, 15), new(9, 0), new(10, 0));
-        using var anonymous = factory.CreateClient(new() { AllowAutoRedirect = false });
+        using var anonymous = await AuthenticatedClient.CreateWithAntiforgeryAsync(factory,
+            new() { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
         using var instructor = await AuthenticatedClient.CreateAsync(factory, "Instructor");
         var requests = new Func<HttpClient, Task<HttpResponseMessage>>[]
         {

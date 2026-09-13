@@ -15,9 +15,23 @@ internal static class AuthenticatedClient
     {
         await EnsureApprovedRolesAsync(factory);
         var (userName, password) = await CreateAccountAsync(factory, role, true);
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        return await LoginAsync(factory, userName, password);
+    }
+
+    public static async Task<HttpClient> CreateWithAntiforgeryAsync(TcmdApiFactory factory,
+        WebApplicationFactoryClientOptions? options = null)
+    {
+        var client = options is null ? factory.CreateClient() : factory.CreateClient(options);
+        await TcmdApiFactory.RefreshAntiforgeryAsync(client);
+        return client;
+    }
+
+    public static async Task<HttpClient> LoginAsync(TcmdApiFactory factory, string userName, string password)
+    {
+        var client = await CreateWithAntiforgeryAsync(factory);
         var response = await client.PostAsJsonAsync("/api/auth/login", new { userName, password });
         Assert.Equal(System.Net.HttpStatusCode.NoContent, response.StatusCode);
+        await TcmdApiFactory.RefreshAntiforgeryAsync(client);
         return client;
     }
 

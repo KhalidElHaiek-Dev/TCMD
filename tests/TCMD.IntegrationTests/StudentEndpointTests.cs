@@ -162,7 +162,7 @@ public sealed class StudentEndpointTests(TcmdApiFactory factory)
     {
         using var staff = await AuthenticatedClient.CreateAsync(factory, "Staff");
         var student = await RegisterStudentAsync(staff);
-        using var anonymous = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        using var anonymous = await AuthenticatedClient.CreateWithAntiforgeryAsync(factory);
         using var instructor = await AuthenticatedClient.CreateAsync(factory, "Instructor");
 
         foreach (var (client, expectedStatus) in new[]

@@ -1,10 +1,10 @@
-git # TCMD
+# TCMD
 
 TCMD stands for **Training Center Management Dashboard**. It is an internal web application for one training center. The approved V1 scope is described in [`docs/`](docs/).
 
 ## Current status
 
-Milestone 11 completes Instructor account linking and assigned access. The implemented history is:
+Milestone 12 completes the same-origin browser interface and browser verification. The implemented history is:
 
 - Milestone 1: executable API, SQL Server, migrations, health, OpenAPI, and integration-test foundation;
 - Milestone 2: Student registration and retrieval vertical slice;
@@ -17,9 +17,63 @@ Milestone 11 completes Instructor account linking and assigned access. The imple
 - Milestone 8: Enrollment creation, Student and Training Group membership views, status management, withdrawn-membership reactivation, permanent pair uniqueness, and rowversion concurrency handling.
 - Milestone 9: Training Session scheduling, chronological group views, detail updates, explicit completion, cancellation, group-range protection, and rowversion concurrency handling; and
 - Milestone 10: Attendance entry, correction, session rosters, student/group views, staff actor auditing, eligibility and Africa/Casablanca timing rules, permanent pair uniqueness, and rowversion concurrency handling; and
-- Milestone 11: Administrator-managed optional Instructor account links, assigned Group/Session/roster/Attendance access, Attendance entry and correction by assigned Instructors, session invalidation, and historical access transfer.
+- Milestone 11: Administrator-managed optional Instructor account links, assigned Group/Session/roster/Attendance access, Attendance entry and correction by assigned Instructors, session invalidation, and historical access transfer; and
+- Milestone 12: semantic HTML, project-owned responsive CSS, native JavaScript modules, hash routing, same-origin cookie authentication, antiforgery protection, accessible operational and assigned-access workflows, and Playwright verification.
 
-Browser-interface integration and release hardening remain later milestones.
+Milestone 13 remains future work.
+
+## Browser interface
+
+TCMD serves a same-origin browser interface from `src/TCMD.Api/wwwroot`. It uses semantic HTML, project-owned CSS,
+native JavaScript modules, hash routes, and Fetch. It has no Node frontend build or package-management step.
+
+After configuring the development database, applying migrations, and starting `TCMD.Api`, open the HTTPS URL printed
+by ASP.NET Core. The root path loads the browser application; examples of client-side routes are `/#/dashboard`,
+`/#/students`, `/#/groups`, and `/#/staff-accounts`. Unknown server and API paths continue to return ProblemDetails
+rather than the browser entry page.
+
+The browser obtains an antiforgery request token from `GET /api/auth/antiforgery` and sends it as `X-CSRF-TOKEN` on
+every POST, PUT, PATCH, or DELETE request. Manual API clients must first retain the antiforgery cookie and then send
+the returned request token in that header. The token should be refreshed after authentication transitions.
+
+`GET /api/auth/session` returns the signed-in user's safe identifier, username, display name, single role, optional
+Instructor identifier, and `instructorLinkStatus` (`NotApplicable`, `Unlinked`, `Active`, or `Inactive`). The browser
+keeps this information, antiforgery tokens, and SQL rowversion values in memory only. An authenticated 401 clears the
+page state and returns to sign-in; 400 validation, 403, 404, and 409 responses are presented through safe ProblemDetails
+rendering. Base64 rowversions are submitted unchanged, and concurrency conflicts require reloading current data before
+retrying.
+
+Administrator and Staff users share the operational shell for Students, Instructors, Courses, Training Groups,
+Enrollments, Training Sessions, and Attendance. Administrators additionally manage Staff Accounts and Instructor
+links. Instructors use the same shell for assigned Groups, Sessions, rosters, and Attendance only. UI visibility is a
+usability feature; API authorization remains authoritative.
+
+Training Session dates and times are displayed as `dd/MM/yyyy` and `HH:mm` and explicitly represent
+Africa/Casablanca time. Missing Attendance is shown as **Not Recorded**, never inferred as Absent.
+
+The layout supplies semantic landmarks, a skip link, persistent labels, visible keyboard focus, associated validation
+messages, status and alert regions, accessible confirmation dialogs, responsive tables/cards, reduced-motion support, and
+a layout usable at approximately 320 CSS pixels.
+
+### Browser tests
+
+The Playwright project is deliberately separate from `TCMD.slnx` so unavailable browser binaries do not break the
+normal backend build/test path. It uses only .NET tooling and guards its destructive setup so the database name must
+be exactly `TCMD.BrowserTests`.
+
+Restore and build it separately:
+
+```powershell
+dotnet restore tests/TCMD.BrowserTests/TCMD.BrowserTests.csproj
+dotnet build tests/TCMD.BrowserTests/TCMD.BrowserTests.csproj --no-restore
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/TCMD.BrowserTests/bin/Debug/net10.0/playwright.ps1 install chromium
+dotnet test tests/TCMD.BrowserTests/TCMD.BrowserTests.csproj --no-build --no-restore
+```
+
+By default it uses LocalDB database `TCMD.BrowserTests`. For another SQL Server, set
+`TCMD_BROWSER_TEST_CONNECTION_STRING` to a connection string whose database is exactly `TCMD.BrowserTests`. The test
+fixture refuses every other database name, drops and recreates that dedicated database, starts the real HTTPS API,
+and then runs the browser journey.
 
 ## Solution structure
 
@@ -29,6 +83,7 @@ Browser-interface integration and release hardening remain later milestones.
 - `src/TCMD.Infrastructure` owns EF Core, SQL Server, `TcmdDbContext`, entity configuration, persistence implementations, and migrations.
 - `tests/TCMD.IntegrationTests` starts the real API pipeline with `WebApplicationFactory` and tests it through `HttpClient` against a dedicated SQL Server database.
 - `tests/TCMD.DomainTests` contains focused tests for student, instructor, course, training-group, and enrollment domain rules.
+- `tests/TCMD.BrowserTests` starts the real API on guarded loopback HTTPS and exercises the browser workflow with Playwright against the dedicated `TCMD.BrowserTests` database.
 
 The dependency direction is `TCMD.Api -> TCMD.Application + TCMD.Infrastructure`, `TCMD.Infrastructure -> TCMD.Application + TCMD.Domain`, and `TCMD.Application -> TCMD.Domain`. The Domain project has no project dependencies. Infrastructure implements interfaces owned by Application, so use cases remain independent of EF Core and SQL Server.
 
@@ -45,6 +100,8 @@ The dependency direction is `TCMD.Api -> TCMD.Application + TCMD.Infrastructure`
 - `src/TCMD.Api/appsettings.json` contains safe shared settings only. ASP.NET Core loads environment variables and user-secrets over these settings.
 - `tests/TCMD.IntegrationTests/TcmdApiFactory.cs` configures `WebApplicationFactory`, guards the dedicated test database name, and applies migrations before tests.
 - `tests/TCMD.IntegrationTests/HealthEndpointTests.cs` proves the real API pipeline, SQL Server connection, OpenAPI document, and `ProblemDetails` response work together.
+- `src/TCMD.Api/wwwroot/` contains the browser entry page, project-owned styles, shared browser infrastructure, and workflow modules.
+- `tests/TCMD.BrowserTests/BrowserFixture.cs` owns the guarded database reset, HTTPS Kestrel process, Chromium lifecycle, and startup diagnostics.
 - `.config/dotnet-tools.json` pins the EF Core command-line tool version used by the repository.
 
 ## Foundation concepts

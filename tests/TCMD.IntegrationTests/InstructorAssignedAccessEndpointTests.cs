@@ -29,7 +29,7 @@ public sealed class InstructorAssignedAccessEndpointTests(TcmdApiFactory factory
         var id = await AuthenticatedClient.FindUserIdAsync(factory, name);
         using var staff = await AuthenticatedClient.CreateAsync(factory, "Staff");
         using var instructorClient = await LoginAsync(name, password);
-        using var anonymous = factory.CreateClient();
+        using var anonymous = await AuthenticatedClient.CreateWithAntiforgeryAsync(factory);
         Assert.Equal(HttpStatusCode.Forbidden, (await PutLinkAsync(staff, id, instructor.Id)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await PutLinkAsync(instructorClient, id, instructor.Id)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await PutLinkAsync(anonymous, id, instructor.Id)).StatusCode);
@@ -259,10 +259,7 @@ public sealed class InstructorAssignedAccessEndpointTests(TcmdApiFactory factory
 
     private async Task<HttpClient> LoginAsync(string userName, string password)
     {
-        var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
-        Assert.Equal(HttpStatusCode.NoContent,
-            (await client.PostAsJsonAsync("/api/auth/login", new { userName, password })).StatusCode);
-        return client;
+        return await AuthenticatedClient.LoginAsync(factory, userName, password);
     }
 
     private static Task<HttpResponseMessage> PutLinkAsync(HttpClient client, Guid accountId, Guid? instructorId) =>

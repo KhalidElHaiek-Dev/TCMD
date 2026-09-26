@@ -12,8 +12,14 @@ async function controls(account,messages){
  section.append(el('div',{class:'panel'},role.wrap,roleButton),el('div',{class:'panel'},password.wrap,passButton),el('div',{class:'panel'},activeButton));
  if(account.role==='Instructor'){
   const instructors=await api('/api/instructors?isActive=true');
+  if(!instructors.ok){section.append(problemView(instructors.problem,instructors.status));return section}
+  if(account.instructorId&&!instructors.data.some(x=>x.id===account.instructorId)){
+   const current=await api(`/api/instructors/${account.instructorId}`);
+   if(!current.ok){section.append(problemView(current.problem,current.status));return section}
+   instructors.data.push(current.data);
+  }
   if(instructors.ok){
-   const link=field('instructorId','Linked Instructor',{tag:'select',value:account.instructorId||'',items:[{value:'',label:'No link'},...instructors.data.map(x=>({value:x.id,label:x.fullName}))]});
+   const link=field('instructorId','Linked Instructor',{tag:'select',value:account.instructorId||'',items:[{value:'',label:'No link'},...instructors.data.map(x=>({value:x.id,label:`${x.fullName}${x.isActive?"":" (inactive, current)"}`,disabled:!x.isActive}))]});
    section.append(el('div',{class:'panel'},el('h2',{text:'Instructor link'}),link.wrap,el('button',{class:'secondary',text:'Update link',onclick:()=>mutate('Update Instructor link','Replace or remove this Instructor link? The account session may be invalidated.',`/api/staff-accounts/${account.id}/instructor-link`,'PUT',{instructorId:link.input.value||null})})));
   }
  }

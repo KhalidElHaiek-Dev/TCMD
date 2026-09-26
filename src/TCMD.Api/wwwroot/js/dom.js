@@ -16,7 +16,8 @@ export const announce = message => { const n=document.querySelector("#announcer"
 export function field(name, label, options={}) {
   const id=`field-${name}-${Math.random().toString(36).slice(2)}`;
   const input=el(options.tag||"input",{id,name,type:options.type||"text",value:options.value??null,maxlength:options.maxlength,required:options.required,autocomplete:options.autocomplete,placeholder:options.placeholder});
-  if(options.tag==="select") for(const item of options.items||[]) input.append(el("option",{value:item.value,selected:String(item.value)===String(options.value),text:item.label}));
+  if(options.tag==="textarea") input.defaultValue=options.value??"";
+  if(options.tag==="select") for(const item of options.items||[]) input.append(el("option",{value:item.value,selected:String(item.value)===String(options.value),disabled:item.disabled,text:item.label}));
   const error=el("div",{class:"field-error",id:`${id}-error`});
   return {wrap:el("div",{class:"field"},el("label",{for:id,text:label}),input,options.help?el("small",{text:options.help}):null,error),input,error};
 }

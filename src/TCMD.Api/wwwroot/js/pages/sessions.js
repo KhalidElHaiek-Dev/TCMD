@@ -74,9 +74,10 @@ function statusButtons(model,onAction){
 async function roster(model){const section=el("section",{},el("h2",{text:"Attendance roster"})),r=await api(`/api/training-sessions/${model.id}/attendance`);if(!r.ok){section.append(problemView(r.problem,r.status));return section}if(!r.data.length){section.append(empty("No applicable Enrollment roster."));return section}section.append(table("Session Attendance roster",[{label:"Student",render:x=>`${x.student.studentNumber} — ${x.student.fullName}`},{label:"Enrollment",render:x=>badge(x.enrollmentStatus)},{label:"Attendance",render:x=>{const cell=el("span");cell.replaceChildren(x.attendance?badge(x.attendance.status):badge("Not Recorded"));x.attendanceStatusCell=cell;return cell}},{label:"Correction note",render:x=>{const cell=el("span",{text:text(x.attendance?.correctionNote)});x.attendanceNoteCell=cell;return cell}},{label:"Action",render:x=>{const cell=el("div");x.attendanceActionCell=cell;cell.append(attendanceControl(model,x,section));return cell}}],r.data));return section}
 function attendanceControl(model,row,section){
  if(!row.attendance&&model.status==='Cancelled')return "New entry unavailable";
- const status=field(`status-${row.enrollmentId}`,"Status",{tag:"select",value:row.attendance?.status||"",items:[{value:"",label:"Select"},...statuses.map(x=>({value:x,label:x}))]});
- const note=row.attendance?field(`note-${row.enrollmentId}`,"Correction note",{tag:"textarea",maxlength:1000,value:row.attendance.correctionNote}):null;
- const feedback=el("div"),button=el("button",{class:"secondary",text:row.attendance?"Correct":"Record",onclick:async()=>{
+ const studentName=row.student.fullName;
+ const status=field(`status-${row.enrollmentId}`,"Status",{tag:"select",ariaLabel:`Attendance status for ${studentName}`,value:row.attendance?.status||"",items:[{value:"",label:"Select"},...statuses.map(x=>({value:x,label:x}))]});
+ const note=row.attendance?field(`note-${row.enrollmentId}`,"Correction note",{tag:"textarea",ariaLabel:`Attendance correction note for ${studentName}`,maxlength:1000,value:row.attendance.correctionNote}):null;
+ const feedback=el("div"),button=el("button",{class:"secondary","aria-label":`${row.attendance?"Correct":"Record"} attendance for ${studentName}`,text:row.attendance?"Correct":"Record",onclick:async()=>{
   if(button.disabled||!status.input.value)return;
   button.disabled=true;feedback.replaceChildren();
   const existing=row.attendance;

@@ -37,7 +37,7 @@ public sealed class BrowserWorkflowTests(BrowserFixture fixture)
         await page.GetByLabel("Full name").FillAsync($"Attempted Student {suffix}");
         await page.EvaluateAsync("""async id => { const token=(await (await fetch('/api/auth/antiforgery')).json()).requestToken; const current=await (await fetch('/api/students/'+id)).json(); await fetch('/api/students/'+id,{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token},body:JSON.stringify({...current,fullName:'Concurrent Student'})}); }""", studentId);
         await page.GetByRole(AriaRole.Button,new(){Name="Save changes"}).ClickAsync();
-        await Assertions.Expect(page.GetByText("Student was changed by another user. Reload and try again.")).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Alert).Filter(new() { HasText = "Student was changed by another user. Reload and try again." })).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Button,new(){Name="Reload latest"})).ToBeVisibleAsync();
 
         await page.GetByRole(AriaRole.Link,new(){Name="Courses"}).ClickAsync();
@@ -66,7 +66,7 @@ public sealed class BrowserWorkflowTests(BrowserFixture fixture)
         await page.GetByRole(AriaRole.Link,new(){Name="Schedule Session"}).ClickAsync();
         await page.GetByLabel("Session date").FillAsync(today);await page.GetByLabel("Start time").FillAsync("00:01");await page.GetByLabel("End time").FillAsync("23:59");
         await page.GetByRole(AriaRole.Button,new(){Name="Schedule Session"}).ClickAsync();await ExpectHeading(page,"Training Session");
-        var attendanceStatus = page.GetByLabel("Status", new() { Exact = true });
+        var attendanceStatus = page.GetByLabel("Attendance status for Concurrent Student");
         await Assertions.Expect(attendanceStatus).ToBeVisibleAsync();
         await Assertions.Expect(attendanceStatus).ToBeEnabledAsync();
         Assert.Equal(["Select", "Present", "Absent", "Late", "Excused"],
@@ -74,7 +74,7 @@ public sealed class BrowserWorkflowTests(BrowserFixture fixture)
         await attendanceStatus.SelectOptionAsync("Present");
         await Assertions.Expect(attendanceStatus).ToHaveValueAsync("Present");
         var attendanceResponse = await page.RunAndWaitForResponseAsync(
-            () => page.GetByRole(AriaRole.Button,new(){Name="Record"}).ClickAsync(),
+            () => page.GetByRole(AriaRole.Button,new(){Name="Record attendance for Concurrent Student"}).ClickAsync(),
             response => response.Request.Method == "POST" && response.Url.Contains("/attendance"));
         Assert.Equal(201, attendanceResponse.Status);
         await Assertions.Expect(page.GetByRole(AriaRole.Cell,new(){Name="Present",Exact=true})).ToBeVisibleAsync();
@@ -89,9 +89,10 @@ public sealed class BrowserWorkflowTests(BrowserFixture fixture)
         await Assertions.Expect(page.GetByRole(AriaRole.Alert)).ToContainTextAsync(passwordPolicyMessage);
         var initialPassword = page.GetByLabel("Initial password");
         await Assertions.Expect(initialPassword).ToHaveAttributeAsync("aria-invalid", "true");
-        var passwordErrorId = await initialPassword.GetAttributeAsync("aria-describedby");
-        Assert.False(string.IsNullOrWhiteSpace(passwordErrorId));
-        await Assertions.Expect(page.Locator($"#{passwordErrorId}")).ToHaveTextAsync(passwordPolicyMessage);
+        var passwordDescriptionIds = (await initialPassword.GetAttributeAsync("aria-describedby"))?.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        Assert.NotNull(passwordDescriptionIds);
+        Assert.Equal(2, passwordDescriptionIds.Length);
+        await Assertions.Expect(page.Locator($"#{passwordDescriptionIds[1]}")).ToHaveTextAsync(passwordPolicyMessage);
         await page.GetByLabel("Initial password").FillAsync("Password1");await page.GetByRole(AriaRole.Button,new(){Name="Create Account"}).ClickAsync();
         await ExpectHeading(page,"Staff Account");await page.GetByLabel("Linked Instructor").SelectOptionAsync(instructorId);
         await page.GetByRole(AriaRole.Button,new(){Name="Update link"}).ClickAsync();

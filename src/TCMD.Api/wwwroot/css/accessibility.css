@@ -1,0 +1,73 @@
+body {
+  overflow-wrap: anywhere;
+}
+
+main:focus {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+
+.table-wrap {
+  max-width: 100%;
+}
+
+th,
+td {
+  overflow-wrap: anywhere;
+}
+
+dialog {
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+}
+
+@media (max-width: 600px) {
+  .responsive-table thead {
+    display: table-header-group;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .responsive-table td {
+    grid-template-columns: minmax(6.5rem, 35%) minmax(0, 1fr);
+  }
+
+  .responsive-table td[data-label=""]::before {
+    display: none;
+  }
+
+  .responsive-table td[data-label=""] {
+    display: block;
+  }
+
+  .responsive-table .actions {
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 480px) {
+  .toolbar .button {
+    width: 100%;
+  }
+
+  .nav-inner {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nav a,
+  .nav button {
+    min-height: 2.75rem;
+  }
+
+  .details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

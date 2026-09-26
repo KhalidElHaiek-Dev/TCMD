@@ -48,15 +48,15 @@ public sealed class FormDataPreservationTests(BrowserFixture fixture)
 
         var page = context.Pages.Single();
         await page.GotoAsync($"{fixture.BaseUrl}/#/sessions/{Id(session)}");
-        await Assertions.Expect(page.GetByLabel("Correction note", new() { Exact = true })).ToHaveValueAsync(note);
-        await page.GetByLabel("Status", new() { Exact = true }).SelectOptionAsync("Excused");
-        await SaveAsync(page, "Correct", $"/api/attendance/{Id(attendance)}");
+        await Assertions.Expect(page.GetByLabel("Attendance correction note for Note preservation student", new() { Exact = true })).ToHaveValueAsync(note);
+        await page.GetByLabel("Attendance status for Note preservation student", new() { Exact = true }).SelectOptionAsync("Excused");
+        await SaveAsync(page, "Correct attendance for Note preservation student", $"/api/attendance/{Id(attendance)}");
         var roster = await ApiAsync(context, $"/api/training-sessions/{Id(session)}/attendance");
         var saved = roster.EnumerateArray().Single().GetProperty("attendance");
         Assert.Equal("Excused", saved.GetProperty("status").GetString());
         Assert.Equal(note, saved.GetProperty("correctionNote").GetString());
         await page.ReloadAsync();
-        await Assertions.Expect(page.GetByLabel("Correction note", new() { Exact = true })).ToHaveValueAsync(note);
+        await Assertions.Expect(page.GetByLabel("Attendance correction note for Note preservation student", new() { Exact = true })).ToHaveValueAsync(note);
     }
 
     [Theory]

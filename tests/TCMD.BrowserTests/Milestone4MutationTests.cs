@@ -6,10 +6,13 @@ namespace TCMD.BrowserTests;
 [Collection(BrowserCollection.Name)]
 public sealed class Milestone4MutationTests(BrowserFixture fixture)
 {
-    [Fact]
-    public async Task Attendance_SavePreservesSiblingInput_UsesServerState_AndPreventsDuplicates()
+    [Theory]
+    [InlineData(320)]
+    [InlineData(375)]
+    [InlineData(768)]
+    public async Task Attendance_SavePreservesSiblingInput_UsesServerState_AndPreventsDuplicates(int viewportWidth)
     {
-        await using var context = await SignInAsync();
+        await using var context = await SignInAsync(viewportWidth);
         var seed = await CreateAttendanceSeedAsync(context, twoStudents: true);
         var page = context.Pages.Single();
         await page.GotoAsync($"{fixture.BaseUrl}/#/sessions/{seed.SessionId}");
@@ -17,10 +20,10 @@ public sealed class Milestone4MutationTests(BrowserFixture fixture)
 
         var first = AttendanceRow(page, seed.FirstStudentName);
         var second = AttendanceRow(page, seed.SecondStudentName!);
-        await first.GetByLabel("Status", new() { Exact = true }).SelectOptionAsync("Excused");
-        await first.GetByLabel("Correction note").FillAsync("saved note");
-        await second.GetByLabel("Status", new() { Exact = true }).SelectOptionAsync("Absent");
-        await second.GetByLabel("Correction note").FillAsync("unsaved sibling note");
+        await first.GetByLabel($"Attendance status for {seed.FirstStudentName}").SelectOptionAsync("Excused");
+        await first.GetByLabel($"Attendance correction note for {seed.FirstStudentName}").FillAsync("saved note");
+        await second.GetByLabel($"Attendance status for {seed.SecondStudentName}").SelectOptionAsync("Absent");
+        await second.GetByLabel($"Attendance correction note for {seed.SecondStudentName}").FillAsync("unsaved sibling note");
 
         var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var writes = 0;
@@ -32,7 +35,7 @@ public sealed class Milestone4MutationTests(BrowserFixture fixture)
             await route.FulfillAsync(new() { Response = response });
         });
 
-        var button = first.GetByRole(AriaRole.Button, new() { Name = "Correct", Exact = true });
+        var button = first.GetByRole(AriaRole.Button, new() { Name = $"Correct attendance for {seed.FirstStudentName}", Exact = true });
         await button.EvaluateAsync("button => { button.click(); button.click(); }");
         await Assertions.Expect(button).ToBeDisabledAsync();
         Assert.Equal(1, Volatile.Read(ref writes));
@@ -41,14 +44,14 @@ public sealed class Milestone4MutationTests(BrowserFixture fixture)
 
         Assert.Equal(1, Volatile.Read(ref writes));
         await AssertSameDocumentAsync(page);
-        await Assertions.Expect(second.GetByLabel("Status", new() { Exact = true })).ToHaveValueAsync("Absent");
-        await Assertions.Expect(second.GetByLabel("Correction note")).ToHaveValueAsync("unsaved sibling note");
+        await Assertions.Expect(second.GetByLabel($"Attendance status for {seed.SecondStudentName}")).ToHaveValueAsync("Absent");
+        await Assertions.Expect(second.GetByLabel($"Attendance correction note for {seed.SecondStudentName}")).ToHaveValueAsync("unsaved sibling note");
         var saved = (await ApiAsync(context, $"/api/training-sessions/{seed.SessionId}/attendance"))
             .EnumerateArray().Single(x => x.GetProperty("attendance").GetProperty("id").GetString() == seed.FirstAttendanceId)
             .GetProperty("attendance");
-        await Assertions.Expect(first.GetByLabel("Status", new() { Exact = true })).ToHaveValueAsync(saved.GetProperty("status").GetString()!);
-        await Assertions.Expect(first.GetByLabel("Correction note")).ToHaveValueAsync(saved.GetProperty("correctionNote").GetString()!);
-        await Assertions.Expect(first.GetByRole(AriaRole.Button, new() { Name = "Correct", Exact = true })).ToBeEnabledAsync();
+        await Assertions.Expect(first.GetByLabel($"Attendance status for {seed.FirstStudentName}")).ToHaveValueAsync(saved.GetProperty("status").GetString()!);
+        await Assertions.Expect(first.GetByLabel($"Attendance correction note for {seed.FirstStudentName}")).ToHaveValueAsync(saved.GetProperty("correctionNote").GetString()!);
+        await Assertions.Expect(first.GetByRole(AriaRole.Button, new() { Name = $"Correct attendance for {seed.FirstStudentName}", Exact = true })).ToBeEnabledAsync();
     }
 
     [Fact]
@@ -60,8 +63,8 @@ public sealed class Milestone4MutationTests(BrowserFixture fixture)
         await page.GotoAsync($"{fixture.BaseUrl}/#/sessions/{seed.SessionId}");
         await MarkDocumentAsync(page);
         var row = AttendanceRow(page, seed.FirstStudentName);
-        await row.GetByLabel("Status", new() { Exact = true }).SelectOptionAsync("Late");
-        await row.GetByLabel("Correction note").FillAsync("keep this correction");
+        await row.GetByLabel($"Attendance status for {seed.FirstStudentName}").SelectOptionAsync("Late");
+        await row.GetByLabel($"Attendance correction note for {seed.FirstStudentName}").FillAsync("keep this correction");
         var writes = 0;
         await page.RouteAsync($"**/api/attendance/{seed.FirstAttendanceId}", async route =>
         {
@@ -69,12 +72,12 @@ public sealed class Milestone4MutationTests(BrowserFixture fixture)
             await route.FulfillAsync(new() { Status = 500, ContentType = "application/problem+json", Body = "{\"title\":\"Controlled attendance failure\"}" });
         });
 
-        var button = row.GetByRole(AriaRole.Button, new() { Name = "Correct", Exact = true });
+        var button = row.GetByRole(AriaRole.Button, new() { Name = $"Correct attendance for {seed.FirstStudentName}", Exact = true });
         await button.ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Alert).Filter(new() { HasText = "Controlled attendance failure" })).ToBeVisibleAsync();
         await Assertions.Expect(button).ToBeEnabledAsync();
-        await Assertions.Expect(row.GetByLabel("Status", new() { Exact = true })).ToHaveValueAsync("Late");
-        await Assertions.Expect(row.GetByLabel("Correction note")).ToHaveValueAsync("keep this correction");
+        await Assertions.Expect(row.GetByLabel($"Attendance status for {seed.FirstStudentName}")).ToHaveValueAsync("Late");
+        await Assertions.Expect(row.GetByLabel($"Attendance correction note for {seed.FirstStudentName}")).ToHaveValueAsync("keep this correction");
         await AssertSameDocumentAsync(page);
         await page.WaitForTimeoutAsync(100);
         Assert.Equal(1, writes);
@@ -216,9 +219,13 @@ public sealed class Milestone4MutationTests(BrowserFixture fixture)
         await AssertSameDocumentAsync(page);
     }
 
-    private async Task<IBrowserContext> SignInAsync()
+    private async Task<IBrowserContext> SignInAsync(int viewportWidth = 1280)
     {
-        var context = await fixture.Browser.NewContextAsync(new() { IgnoreHTTPSErrors = true });
+        var context = await fixture.Browser.NewContextAsync(new()
+        {
+            IgnoreHTTPSErrors = true,
+            ViewportSize = new() { Width = viewportWidth, Height = 800 }
+        });
         await ApiAsync(context, "/api/auth/login", "POST", new { userName = BrowserFixture.AdminUserName, password = BrowserFixture.AdminPassword }, 204);
         await context.NewPageAsync();
         return context;

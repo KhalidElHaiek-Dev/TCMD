@@ -98,7 +98,8 @@ public sealed class AuthenticationLifecycleTests(BrowserFixture fixture)
         await page.GetByRole(AriaRole.Button, new() { Name = "Sign out" }).ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Alert)).ToContainTextAsync("Request security could not be initialized.");
         await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Sign out" })).ToBeEnabledAsync();
-        await Assertions.Expect(page.GetByText("Browser Administrator · Administrator")).ToBeVisibleAsync();
+        await Assertions.Expect(page.Locator(".identity-name")).ToHaveTextAsync("Browser Administrator");
+        await Assertions.Expect(page.Locator(".identity-role")).ToHaveTextAsync("Administrator");
     }
 
     [Fact]
@@ -157,7 +158,11 @@ public sealed class AuthenticationLifecycleTests(BrowserFixture fixture)
         await page.GetByLabel("Username").FillAsync(BrowserFixture.AdminUserName);
         await page.GetByLabel("Password").FillAsync(BrowserFixture.AdminPassword);
         await page.GetByRole(AriaRole.Button, new() { Name = "Sign in" }).ClickAsync();
-        if (expectSuccess) await Assertions.Expect(page.GetByText("Browser Administrator · Administrator")).ToBeVisibleAsync();
+        if (expectSuccess)
+        {
+            await Assertions.Expect(page.Locator(".identity-name")).ToHaveTextAsync("Browser Administrator");
+            await Assertions.Expect(page.Locator(".identity-role")).ToHaveTextAsync("Administrator");
+        }
     }
 
     private static async Task NavigateAndWaitAsync(IPage page, string route, string apiPath)

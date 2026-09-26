@@ -95,15 +95,12 @@ public sealed class BrowserWorkflowTests(BrowserFixture fixture)
         await page.GetByLabel("Initial password").FillAsync("Password1");await page.GetByRole(AriaRole.Button,new(){Name="Create Account"}).ClickAsync();
         await ExpectHeading(page,"Staff Account");await page.GetByLabel("Linked Instructor").SelectOptionAsync(instructorId);
         await page.GetByRole(AriaRole.Button,new(){Name="Update link"}).ClickAsync();
-        var linkResponseTask = page.WaitForResponseAsync(response =>
-            response.Request.Method == "PUT" && response.Url.EndsWith("/instructor-link"));
-        var accountDocumentUrl = new Uri(page.Url).GetLeftPart(UriPartial.Path);
-        await page.RunAndWaitForResponseAsync(
+        var linkResponse = await page.RunAndWaitForResponseAsync(
             () => page.GetByRole(AriaRole.Button,new(){Name="Confirm"}).ClickAsync(),
-            response => response.Request.ResourceType == "document" && response.Url == accountDocumentUrl);
-        var linkResponse = await linkResponseTask;
+            response => response.Request.Method == "PUT" && response.Url.EndsWith("/instructor-link"));
         Assert.Equal(200, linkResponse.Status);
         await ExpectHeading(page,"Staff Account");
+        await Assertions.Expect(page.GetByRole(AriaRole.Status).Filter(new(){HasText="Instructor link updated."})).ToBeVisibleAsync();
         var logoutResponse = await page.RunAndWaitForResponseAsync(
             () => page.GetByRole(AriaRole.Button,new(){Name="Sign out"}).ClickAsync(),
             response => response.Request.Method == "POST" && response.Url.EndsWith("/api/auth/logout"));

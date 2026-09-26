@@ -18,7 +18,7 @@ export async function entityDetail(kind,id){const cfg=configs[kind],creating=id=
   if(busy||stale)return;busy=true;syncControls();message.replaceChildren();
   try{
    const result=await api(`/api/${cfg.path}/${id}/deactivate`,{method:"POST",body:{rowVersion:model.rowVersion}});
-   if(result.ok){model=result.data;location.reload()}else await handle(result);
+   if(result.ok){model=result.data;form.querySelectorAll('input,textarea').forEach(control=>control.disabled=true);actions.replaceChildren(el("a",{class:"button secondary",href:`#/${kind}`,text:"Back to list"}));root.querySelector(".details dd").replaceChildren(badge("Inactive"));message.append(el("div",{class:"alert alert-success",role:"status",text:`${cfg.single} deactivated.`}))}else await handle(result);
   }finally{busy=false;syncControls()}
  }}));
  form.append(actions);form.addEventListener("submit",async e=>{

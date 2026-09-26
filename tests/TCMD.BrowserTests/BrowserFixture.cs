@@ -25,8 +25,8 @@ public sealed class BrowserFixture : IAsyncLifetime
         if (!string.Equals(new SqlConnectionStringBuilder(connection).InitialCatalog, "TCMD.BrowserTests", StringComparison.Ordinal))
             throw new InvalidOperationException("Browser tests require the dedicated TCMD.BrowserTests database.");
 
-        await RunAsync("dotnet", "ef database drop --force --project src/TCMD.Infrastructure --startup-project src/TCMD.Api", root, connection);
-        await RunAsync("dotnet", "ef database update --project src/TCMD.Infrastructure --startup-project src/TCMD.Api", root, connection);
+        await RunAsync("dotnet", "ef database drop --force --no-build --project src/TCMD.Infrastructure --startup-project src/TCMD.Api", root, connection);
+        await RunAsync("dotnet", "ef database update --no-build --project src/TCMD.Infrastructure --startup-project src/TCMD.Api", root, connection);
         BaseUrl = $"https://127.0.0.1:{GetAvailablePort()}";
         var start = new ProcessStartInfo("dotnet",
             $"run --no-build --no-launch-profile --project src/TCMD.Api --urls {BaseUrl}")

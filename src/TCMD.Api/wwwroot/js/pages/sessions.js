@@ -71,20 +71,21 @@ function statusButtons(model,onAction){
  if(model.status==='Scheduled')for(const action of ['complete','cancel'])wrap.append(el("button",{type:"button",class:action==='cancel'?'danger':'secondary',text:action[0].toUpperCase()+action.slice(1),onclick:()=>onAction(action)}));
  return wrap;
 }
-async function roster(model){const section=el("section",{},el("h2",{text:"Attendance roster"})),r=await api(`/api/training-sessions/${model.id}/attendance`);if(!r.ok){section.append(problemView(r.problem,r.status));return section}if(!r.data.length){section.append(empty("No applicable Enrollment roster."));return section}section.append(table("Session Attendance roster",[{label:"Student",render:x=>`${x.student.studentNumber} — ${x.student.fullName}`},{label:"Enrollment",render:x=>badge(x.enrollmentStatus)},{label:"Attendance",render:x=>x.attendance?badge(x.attendance.status):badge("Not Recorded")},{label:"Correction note",render:x=>text(x.attendance?.correctionNote)},{label:"Action",render:x=>attendanceControl(model,x,section)}],r.data));return section}
+async function roster(model){const section=el("section",{},el("h2",{text:"Attendance roster"})),r=await api(`/api/training-sessions/${model.id}/attendance`);if(!r.ok){section.append(problemView(r.problem,r.status));return section}if(!r.data.length){section.append(empty("No applicable Enrollment roster."));return section}section.append(table("Session Attendance roster",[{label:"Student",render:x=>`${x.student.studentNumber} — ${x.student.fullName}`},{label:"Enrollment",render:x=>badge(x.enrollmentStatus)},{label:"Attendance",render:x=>{const cell=el("span");cell.replaceChildren(x.attendance?badge(x.attendance.status):badge("Not Recorded"));x.attendanceStatusCell=cell;return cell}},{label:"Correction note",render:x=>{const cell=el("span",{text:text(x.attendance?.correctionNote)});x.attendanceNoteCell=cell;return cell}},{label:"Action",render:x=>{const cell=el("div");x.attendanceActionCell=cell;cell.append(attendanceControl(model,x,section));return cell}}],r.data));return section}
 function attendanceControl(model,row,section){
  if(!row.attendance&&model.status==='Cancelled')return "New entry unavailable";
  const status=field(`status-${row.enrollmentId}`,"Status",{tag:"select",value:row.attendance?.status||"",items:[{value:"",label:"Select"},...statuses.map(x=>({value:x,label:x}))]});
  const note=row.attendance?field(`note-${row.enrollmentId}`,"Correction note",{tag:"textarea",maxlength:1000,value:row.attendance.correctionNote}):null;
- const button=el("button",{class:"secondary",text:row.attendance?"Correct":"Record",onclick:async()=>{
-  if(!status.input.value)return;
-  button.disabled=true;
-  const r=row.attendance
-   ?await api(`/api/attendance/${row.attendance.id}`,{method:'PUT',body:{status:status.input.value,correctionNote:note.input.value,rowVersion:row.attendance.rowVersion}})
+ const feedback=el("div"),button=el("button",{class:"secondary",text:row.attendance?"Correct":"Record",onclick:async()=>{
+  if(button.disabled||!status.input.value)return;
+  button.disabled=true;feedback.replaceChildren();
+  const existing=row.attendance;
+  const r=existing
+   ?await api(`/api/attendance/${existing.id}`,{method:'PUT',body:{status:status.input.value,correctionNote:note.input.value,rowVersion:existing.rowVersion}})
    :await api(`/api/training-sessions/${model.id}/attendance`,{method:'POST',body:{enrollmentId:row.enrollmentId,status:status.input.value}});
-  if(r.ok)location.reload();
-  else button.disabled=await applyRecordProblem(null,section,r,`/api/training-sessions/${model.id}/attendance`,row.attendance?.rowVersion,()=>location.reload(),rows=>rows.find(x=>x.attendance?.id===row.attendance.id)?.attendance);
+  if(r.ok){row.attendance=r.data;row.attendanceStatusCell.replaceChildren(badge(r.data.status));row.attendanceNoteCell.textContent=text(r.data.correctionNote);row.attendanceActionCell.replaceChildren(attendanceControl(model,row,section));row.attendanceActionCell.append(el("div",{class:"alert alert-success",role:"status",text:"Attendance saved."}));return}
+  else{const stale=await applyRecordProblem(null,feedback,r,`/api/training-sessions/${model.id}/attendance`,existing?.rowVersion,()=>location.reload(),rows=>rows.find(x=>x.attendance?.id===existing?.id)?.attendance);button.disabled=stale;return}
  }});
- return el("div",{class:"actions"},status.wrap,note?.wrap,button)
+ return el("div",{class:"actions"},status.wrap,note?.wrap,button,feedback)
 }
 function detail(label,value){return el("dl",{class:"detail"},el("dt",{text:label}),el("dd",{},value?.nodeType?value:value))}

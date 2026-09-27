@@ -36,7 +36,7 @@ public sealed class AuthenticationLifecycleTests(BrowserFixture fixture)
         await requested.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await page.GetByRole(AriaRole.Button, new() { Name = "Sign out" }).ClickAsync();
         release.SetResult();
-        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Sign in to TCMD" })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Sign in", Exact = true })).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Students", Exact = true })).ToHaveCountAsync(0);
     }
 
@@ -51,7 +51,7 @@ public sealed class AuthenticationLifecycleTests(BrowserFixture fixture)
         await page.EvaluateAsync("location.hash='#/students'");
         await requested.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await page.GetByRole(AriaRole.Button, new() { Name = "Sign out" }).ClickAsync();
-        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Sign in to TCMD" })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Sign in", Exact = true })).ToBeVisibleAsync();
         await page.EvaluateAsync("location.hash='#/courses'");
         await SignInFormAsync(page);
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Courses", Exact = true })).ToBeVisibleAsync();
@@ -109,7 +109,7 @@ public sealed class AuthenticationLifecycleTests(BrowserFixture fixture)
         var page = await context.NewPageAsync();
         await page.RouteAsync("**/api/auth/session", route => route.AbortAsync());
         await page.GotoAsync(fixture.BaseUrl);
-        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Sign in to TCMD" })).ToHaveCountAsync(0);
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Sign in", Exact = true })).ToHaveCountAsync(0);
         await Assertions.Expect(page.GetByText("TCMD could not confirm your session.")).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Try again" })).ToBeVisibleAsync();
     }

@@ -77,7 +77,7 @@ public sealed class PhaseBReferenceImplementationTests(BrowserFixture fixture)
         await page.GotoAsync($"{fixture.BaseUrl}/#/dashboard");
         await Assertions.Expect(page.GetByText("Linked and active", new() { Exact = true })).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByText("Phase B assigned group", new() { Exact = true })).ToBeVisibleAsync();
-        await Assertions.Expect(page.GetByRole(AriaRole.Link, new() { Name = "Open workflow Phase B assigned group" })).ToHaveAttributeAsync("href", $"#/groups/{Id(group)}");
+        await Assertions.Expect(page.GetByRole(AriaRole.Link, new() { Name = "View Phase B assigned group" })).ToHaveAttributeAsync("href", $"#/groups/{Id(group)}");
         await Assertions.Expect(page.GetByRole(AriaRole.Link, new() { Name = "Add Student" })).ToHaveCountAsync(0);
         await Assertions.Expect(page.GetByRole(AriaRole.Link, new() { Name = "Staff Accounts" })).ToHaveCountAsync(0);
     }

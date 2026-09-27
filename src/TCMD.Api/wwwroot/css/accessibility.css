@@ -53,7 +53,7 @@ dialog {
 }
 
 @media (max-width: 480px) {
-  .toolbar .button {
+  .toolbar > .button {
     width: 100%;
   }
 

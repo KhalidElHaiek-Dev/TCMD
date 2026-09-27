@@ -111,7 +111,7 @@ public sealed class BrowserWorkflowTests(BrowserFixture fixture)
         Assert.True(logoutHeaders.TryGetValue("x-csrf-token", out var logoutToken));
         Assert.False(string.IsNullOrWhiteSpace(logoutToken));
         Assert.False(logoutHeaders.ContainsKey("content-type"));
-        await ExpectHeading(page,"Sign in to TCMD");
+        await ExpectHeading(page,"Sign in");
         await page.GetByLabel("Username").FillAsync(instructorUser);await page.GetByLabel("Password").FillAsync("Password1");await page.GetByRole(AriaRole.Button,new(){Name="Sign in"}).ClickAsync();
         await ExpectHeading(page,"Dashboard");
         await Assertions.Expect(page.GetByRole(AriaRole.Link,new(){Name="My Groups"})).ToBeVisibleAsync();
@@ -121,7 +121,7 @@ public sealed class BrowserWorkflowTests(BrowserFixture fixture)
 
         await page.EvaluateAsync("""async () => { const token=(await (await fetch('/api/auth/antiforgery')).json()).requestToken; await fetch('/api/auth/logout',{method:'POST',headers:{'X-CSRF-TOKEN':token}}); }""");
         await page.GetByRole(AriaRole.Button,new(){Name="Search"}).ClickAsync();
-        await ExpectHeading(page,"Sign in to TCMD");
+        await ExpectHeading(page,"Sign in");
         await Assertions.Expect(page.GetByText("Your session expired. Sign in again.")).ToBeVisibleAsync();
 
         await page.SetViewportSizeAsync(320,700);
@@ -248,7 +248,7 @@ public sealed class BrowserWorkflowTests(BrowserFixture fixture)
         try
         {
             await Assertions.Expect(page.GetByRole(AriaRole.Heading,
-                new() { Name = "Sign in to TCMD", Exact = true })).ToBeVisibleAsync(new() { Timeout = 15_000 });
+                new() { Name = "Sign in", Exact = true })).ToBeVisibleAsync(new() { Timeout = 15_000 });
         }
         catch (PlaywrightException exception)
         {

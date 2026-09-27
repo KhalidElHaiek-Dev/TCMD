@@ -5,7 +5,7 @@ export async function sessionDetail(id){
  const r=await api(`/api/training-sessions/${id}`);
  if(!r.ok)return problemView(r.problem,r.status);
  let model=r.data;
- const summary=el("div"),attendance=el("div"),root=el("div",{},el("h1",{text:"Training Session"}),summary);
+ const summary=el("div"),attendance=el("div"),root=el("div",{},el("h1",{class:"sr-only",text:"Training Session"}),el("a",{class:"back-link",href:`#/groups/${model.trainingGroupId}?tab=sessions`,text:"← Back to Training Group"}),summary);
  async function showSaved(next){
   model=next;
   summary.replaceChildren(sessionSummary(model));
@@ -17,14 +17,14 @@ export async function sessionDetail(id){
  return root;
 }
 function sessionSummary(model){
- return el("section",{class:"details panel"},detail("Date",date(model.sessionDate)),detail("Time",`${time(model.startTime)}–${time(model.endTime)} (Africa/Casablanca time)`),detail("Location",text(model.location)),detail("Status",badge(model.status)),detail("Training Group",el("a",{href:`#/groups/${model.trainingGroupId}?tab=sessions`,text:"Open Group"})));
+ return el("div",{},el("header",{class:"entity-header"},el("div",{},el("h1",{text:date(model.sessionDate)}),el("div",{class:"entity-meta"},badge(model.status),el("span",{class:"muted",text:`${time(model.startTime)}–${time(model.endTime)}`})))),el("section",{class:"overview panel"},el("h2",{text:"Overview"}),el("div",{class:"overview-grid details"},detail("Session Date",date(model.sessionDate)),detail("Time",`${time(model.startTime)}–${time(model.endTime)} (Africa/Casablanca time)`),detail("Location",text(model.location)),detail("Status",badge(model.status)),detail("Training Group",el("a",{href:`#/groups/${model.trainingGroupId}?tab=sessions`,text:"Open Training Group"})))));
 }
 async function sessionForm(model,groupId,embedded=false,onSaved=async()=>{}){
- const creating=!model,root=el("section",{},el(embedded?"h2":"h1",{text:model?"Edit Session":"Schedule Session"})),messages=el("div"),actions=el("div");
+ const creating=!model,root=el("section",{},el(embedded?"h2":"h1",{text:model?"Edit details":"Schedule Session"})),messages=el("div"),actions=el("div");
  const d=field("sessionDate","Session date",{type:"date",required:true,value:model?.sessionDate}),s=field("startTime","Start time",{type:"time",required:true,value:model?.startTime?.slice(0,5)}),e=field("endTime","End time",{type:"time",required:true,value:model?.endTime?.slice(0,5)}),loc=field("location","Location",{maxlength:500,value:model?.location});
  let stale=false,busy=false;
  const save=el("button",{text:model?"Save Session":"Schedule Session"});
- const form=el("form",{class:"panel",onsubmit:async event=>{
+ const form=el("form",{class:"panel entity-form",onsubmit:async event=>{
   event.preventDefault();if(stale||busy||!form.reportValidity())return;
   if(e.input.value<=s.input.value){e.input.setCustomValidity("End time must be later than start time.");e.input.reportValidity();e.input.setCustomValidity("");return}
   const body={sessionDate:d.input.value,startTime:s.input.value,endTime:e.input.value,location:loc.input.value};
@@ -67,11 +67,11 @@ async function sessionForm(model,groupId,embedded=false,onSaved=async()=>{}){
  root.append(messages,form,actions);if(model)actions.append(statusButtons(model,changeStatus));syncControls();return root;
 }
 function statusButtons(model,onAction){
- const wrap=el("div",{class:"actions panel"});
- if(model.status==='Scheduled')for(const action of ['complete','cancel'])wrap.append(el("button",{type:"button",class:action==='cancel'?'danger':'secondary',text:action[0].toUpperCase()+action.slice(1),onclick:()=>onAction(action)}));
+ const wrap=el("section",{class:"lifecycle-panel panel"},el("div",{},el("h2",{text:"Lifecycle actions"}),el("p",{class:"muted",text:"Complete or cancel this scheduled session."})),el("div",{class:"actions"}));
+ if(model.status==='Scheduled')for(const action of ['complete','cancel'])wrap.lastChild.append(el("button",{type:"button",class:action==='cancel'?'danger':'secondary',text:action[0].toUpperCase()+action.slice(1),onclick:()=>onAction(action)}));
  return wrap;
 }
-async function roster(model){const section=el("section",{},el("h2",{text:"Attendance roster"})),r=await api(`/api/training-sessions/${model.id}/attendance`);if(!r.ok){section.append(problemView(r.problem,r.status));return section}if(!r.data.length){section.append(empty("No applicable Enrollment roster."));return section}section.append(table("Session Attendance roster",[{label:"Student",render:x=>`${x.student.studentNumber} — ${x.student.fullName}`},{label:"Enrollment",render:x=>badge(x.enrollmentStatus)},{label:"Attendance",render:x=>{const cell=el("span");cell.replaceChildren(x.attendance?badge(x.attendance.status):badge("Not Recorded"));x.attendanceStatusCell=cell;return cell}},{label:"Correction note",render:x=>{const cell=el("span",{text:text(x.attendance?.correctionNote)});x.attendanceNoteCell=cell;return cell}},{label:"Action",render:x=>{const cell=el("div");x.attendanceActionCell=cell;cell.append(attendanceControl(model,x,section));return cell}}],r.data));return section}
+async function roster(model){const section=el("section",{},el("h2",{text:"Attendance roster"})),r=await api(`/api/training-sessions/${model.id}/attendance`);if(!r.ok){section.append(problemView(r.problem,r.status));return section}if(!r.data.length){section.append(empty("No applicable Enrollment roster."));return section}section.append(table("Session Attendance roster",[{label:"Student",render:x=>el("div",{},el("strong",{class:"primary-value",text:x.student.fullName}),el("div",{class:"student-number",text:x.student.studentNumber}))},{label:"Enrollment",render:x=>badge(x.enrollmentStatus)},{label:"Current Status",render:x=>{const cell=el("span");cell.replaceChildren(x.attendance?badge(x.attendance.status):badge("Not Recorded"));x.attendanceStatusCell=cell;return cell}},{label:"Correction Note",render:x=>{const cell=el("span",{text:text(x.attendance?.correctionNote)});x.attendanceNoteCell=cell;return cell}},{label:"Actions",render:x=>{const cell=el("div");x.attendanceActionCell=cell;cell.append(attendanceControl(model,x,section));return cell}}],r.data));return section}
 function attendanceControl(model,row,section){
  if(!row.attendance&&model.status==='Cancelled')return "New entry unavailable";
  const studentName=row.student.fullName;
@@ -87,6 +87,6 @@ function attendanceControl(model,row,section){
   if(r.ok){row.attendance=r.data;row.attendanceStatusCell.replaceChildren(badge(r.data.status));row.attendanceNoteCell.textContent=text(r.data.correctionNote);row.attendanceActionCell.replaceChildren(attendanceControl(model,row,section));row.attendanceActionCell.append(el("div",{class:"alert alert-success",role:"status",text:"Attendance saved."}));return}
   else{const stale=await applyRecordProblem(null,feedback,r,`/api/training-sessions/${model.id}/attendance`,existing?.rowVersion,()=>location.reload(),rows=>rows.find(x=>x.attendance?.id===existing?.id)?.attendance);button.disabled=stale;return}
  }});
- return el("div",{class:"actions"},status.wrap,note?.wrap,button,feedback)
+ return el("div",{class:"attendance-control"},status.wrap,note?.wrap,button,feedback)
 }
 function detail(label,value){return el("dl",{class:"detail"},el("dt",{text:label}),el("dd",{},value?.nodeType?value:value))}

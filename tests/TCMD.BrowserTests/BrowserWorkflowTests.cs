@@ -53,7 +53,7 @@ public sealed class BrowserWorkflowTests(BrowserFixture fixture)
         var instructorId = page.Url.Split("#/instructors/")[1];
 
         await page.GetByRole(AriaRole.Link,new(){Name="Training Groups"}).ClickAsync();
-        await page.GetByRole(AriaRole.Link,new(){Name="Add Training Group"}).ClickAsync();
+        await page.GetByRole(AriaRole.Link,new(){Name="Create Training Group"}).ClickAsync();
         await page.GetByLabel("Group name").FillAsync($"Browser Group {suffix}");
         await page.GetByLabel("Course").SelectOptionAsync(courseId);
         await page.GetByLabel("Primary Instructor").SelectOptionAsync(instructorId);

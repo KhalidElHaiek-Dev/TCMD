@@ -21,18 +21,18 @@ public sealed class BrowserWorkflowTests(BrowserFixture fixture)
         await page.GetByLabel("Username").FillAsync(BrowserFixture.AdminUserName);
         await page.GetByLabel("Password").FillAsync(BrowserFixture.AdminPassword);
         await page.GetByRole(AriaRole.Button, new() { Name = "Sign in" }).ClickAsync();
-        await ExpectHeadingWithDiagnostics(page, "Welcome, Browser Administrator", diagnostics,
+        await ExpectHeadingWithDiagnostics(page, "Dashboard", diagnostics,
             "post-login-dashboard-failure.png");
-        await Assertions.Expect(page.GetByRole(AriaRole.Link, new() { Name = "Staff Accounts" })).ToBeVisibleAsync();
+        await Assertions.Expect(page.Locator("#main-content").GetByRole(AriaRole.Link, new() { Name = "Staff Accounts" })).ToBeVisibleAsync();
 
         var suffix=Guid.NewGuid().ToString("N")[..8];
-        await page.GetByRole(AriaRole.Link,new(){Name="Students"}).ClickAsync();
+        await page.GetByRole(AriaRole.Navigation,new(){Name="Primary"}).GetByRole(AriaRole.Link,new(){Name="Students",Exact=true}).ClickAsync();
         await page.GetByRole(AriaRole.Link,new(){Name="Add Student"}).ClickAsync();
         await page.GetByLabel("Full name").FillAsync($"Browser Student {suffix}");
         await page.GetByLabel("Phone number").FillAsync("+212600000000");
         await page.GetByRole(AriaRole.Button,new(){Name="Create Student"}).ClickAsync();
-        await ExpectHeading(page,"Student details");
-        await Assertions.Expect(page.GetByText("Active",new(){Exact=true})).ToBeVisibleAsync();
+        await ExpectHeading(page,$"Browser Student {suffix}");
+        await Assertions.Expect(page.Locator(".entity-header").GetByText("Active",new(){Exact=true})).ToBeVisibleAsync();
         var studentId = page.Url.Split("#/students/")[1];
         await page.GetByLabel("Full name").FillAsync($"Attempted Student {suffix}");
         await page.EvaluateAsync("""async id => { const token=(await (await fetch('/api/auth/antiforgery')).json()).requestToken; const current=await (await fetch('/api/students/'+id)).json(); await fetch('/api/students/'+id,{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token},body:JSON.stringify({...current,fullName:'Concurrent Student'})}); }""", studentId);
@@ -113,7 +113,7 @@ public sealed class BrowserWorkflowTests(BrowserFixture fixture)
         Assert.False(logoutHeaders.ContainsKey("content-type"));
         await ExpectHeading(page,"Sign in to TCMD");
         await page.GetByLabel("Username").FillAsync(instructorUser);await page.GetByLabel("Password").FillAsync("Password1");await page.GetByRole(AriaRole.Button,new(){Name="Sign in"}).ClickAsync();
-        await ExpectHeading(page,"Welcome, Browser Instructor Account");
+        await ExpectHeading(page,"Dashboard");
         await Assertions.Expect(page.GetByRole(AriaRole.Link,new(){Name="My Groups"})).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Link,new(){Name="Students"})).ToHaveCountAsync(0);
         await page.GetByRole(AriaRole.Link,new(){Name="My Groups"}).ClickAsync();

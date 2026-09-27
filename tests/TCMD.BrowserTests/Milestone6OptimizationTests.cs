@@ -83,7 +83,7 @@ public sealed class Milestone6OptimizationTests(BrowserFixture fixture)
         await page.GetByLabel("Status").SelectOptionAsync("true");
         await page.GetByRole(AriaRole.Button, new() { Name = "Search", Exact = true }).ClickAsync();
         await page.GetByRole(AriaRole.Link, new() { Name = $"View {student.GetProperty("studentNumber").GetString()}", Exact = true }).ClickAsync();
-        await page.GetByRole(AriaRole.Link, new() { Name = "Back to list", Exact = true }).ClickAsync();
+        await page.GetByRole(AriaRole.Link, new() { Name = "Back to Students", Exact = false }).ClickAsync();
 
         await Assertions.Expect(page.GetByLabel("Search")).ToHaveValueAsync("Retained filter");
         await Assertions.Expect(page.GetByLabel("Status")).ToHaveValueAsync("true");

@@ -13,9 +13,9 @@ public sealed class AuthenticationLifecycleTests(BrowserFixture fixture)
         var page = await context.NewPageAsync();
         var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        await page.RouteAsync("**/api/students?*", async route => { requested.SetResult(); await release.Task; await route.ContinueAsync(); });
         await page.GotoAsync($"{fixture.BaseUrl}/#/dashboard");
-        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Welcome, Browser Administrator" })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
+        await page.RouteAsync("**/api/students?*", async route => { requested.SetResult(); await release.Task; await route.ContinueAsync(); });
         await page.EvaluateAsync("location.hash='#/students'");
         await requested.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await NavigateAndWaitAsync(page, "/courses", "/api/courses");
@@ -149,7 +149,7 @@ public sealed class AuthenticationLifecycleTests(BrowserFixture fixture)
     {
         var page = await context.NewPageAsync();
         await page.GotoAsync($"{fixture.BaseUrl}/#/dashboard");
-        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Welcome, Browser Administrator" })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
         return page;
     }
 

@@ -40,7 +40,7 @@ public sealed class Milestone5AccessibilityTests(BrowserFixture fixture)
         await page.Keyboard.PressAsync("Escape");
         await Assertions.Expect(page.GetByRole(AriaRole.Dialog)).ToHaveCountAsync(0);
         await Assertions.Expect(opener).ToBeFocusedAsync();
-        await Assertions.Expect(page.GetByText("Active", new() { Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.Locator(".entity-header").GetByText("Active", new() { Exact = true })).ToBeVisibleAsync();
 
         await opener.ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Dialog)).ToBeVisibleAsync();
@@ -82,16 +82,17 @@ public sealed class Milestone5AccessibilityTests(BrowserFixture fixture)
         await page.GotoAsync($"{fixture.BaseUrl}/#/students/new");
         await Assertions.Expect(page.GetByRole(AriaRole.Main)).ToBeFocusedAsync();
 
+        var studentName = $"Keyboard Student {Guid.NewGuid():N}";
         await page.Keyboard.PressAsync("Tab");
-        await page.Keyboard.TypeAsync($"Keyboard Student {Guid.NewGuid():N}");
+        await page.Keyboard.TypeAsync(studentName);
         await page.Keyboard.PressAsync("Tab");
         await page.Keyboard.TypeAsync("+212600000007");
         await page.Keyboard.PressAsync("Tab");
         await page.Keyboard.PressAsync("Tab");
         await page.Keyboard.PressAsync("Enter");
 
-        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Student details", Exact = true })).ToBeVisibleAsync();
-        await Assertions.Expect(page.GetByText("Active", new() { Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = studentName, Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.Locator(".entity-header").GetByText("Active", new() { Exact = true })).ToBeVisibleAsync();
     }
 
     [Theory]

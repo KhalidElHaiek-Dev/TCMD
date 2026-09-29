@@ -7,6 +7,23 @@ namespace TCMD.BrowserTests;
 public sealed class Milestone5AccessibilityTests(BrowserFixture fixture)
 {
     [Fact]
+    public async Task MouseRouteNavigation_FocusesMain_WithoutVisibleFocusTreatment()
+    {
+        await using var context = await SignInAsync();
+        var page = context.Pages.Single();
+        await page.GotoAsync($"{fixture.BaseUrl}/#/dashboard");
+
+        await page.GetByRole(AriaRole.Navigation, new() { Name = "Primary" })
+            .GetByRole(AriaRole.Link, new() { Name = "Students", Exact = true })
+            .ClickAsync();
+
+        var main = page.GetByRole(AriaRole.Main);
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Students" })).ToBeVisibleAsync();
+        await Assertions.Expect(main).ToBeFocusedAsync();
+        Assert.Equal("none", await main.EvaluateAsync<string>("element => getComputedStyle(element).outlineStyle"));
+    }
+
+    [Fact]
     public async Task SkipLink_UsesKeyboard_FocusesMain_AndPreservesRoute()
     {
         await using var context = await SignInAsync();
@@ -20,7 +37,25 @@ public sealed class Milestone5AccessibilityTests(BrowserFixture fixture)
         await page.Keyboard.PressAsync("Enter");
 
         await Assertions.Expect(page.GetByRole(AriaRole.Main)).ToBeFocusedAsync();
+        Assert.NotEqual("none", await page.GetByRole(AriaRole.Main)
+            .EvaluateAsync<string>("element => getComputedStyle(element).outlineStyle"));
         Assert.Equal(originalUrl, page.Url);
+    }
+
+    [Fact]
+    public async Task KeyboardTab_ToInteractiveControl_ShowsVisibleFocusTreatment()
+    {
+        await using var context = await SignInAsync();
+        var page = context.Pages.Single();
+        await page.GotoAsync($"{fixture.BaseUrl}/#/students");
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Students" })).ToBeVisibleAsync();
+
+        await page.Keyboard.PressAsync("Tab");
+
+        var addStudent = page.GetByRole(AriaRole.Link, new() { Name = "Add Student" });
+        await Assertions.Expect(addStudent).ToBeFocusedAsync();
+        Assert.NotEqual("none", await addStudent
+            .EvaluateAsync<string>("element => getComputedStyle(element).outlineStyle"));
     }
 
     [Fact]

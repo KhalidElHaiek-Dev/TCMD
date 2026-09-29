@@ -128,7 +128,7 @@ public sealed class SavedStateTests(BrowserFixture fixture)
         Assert.Equal(1, writes); // The failed write was not retried automatically.
 
         await page.GetByRole(AriaRole.Button, new() { Name = "Reload latest", Exact = true }).ClickAsync();
-        if (kind == "group")
+        if (kind is "group" or "course")
             await page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true }).ClickAsync();
         await Assertions.Expect(page.GetByLabel(field, new() { Exact = true })).ToHaveValueAsync("Other user's saved value");
         await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = save, Exact = true })).ToBeEnabledAsync();
@@ -201,7 +201,7 @@ public sealed class SavedStateTests(BrowserFixture fixture)
         var page = await context.NewPageAsync();
         await page.GotoAsync($"{fixture.BaseUrl}/#{route}");
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = heading, Exact = true })).ToBeVisibleAsync();
-        if (route.StartsWith("/groups/"))
+        if (route.StartsWith("/groups/") || route.StartsWith("/sessions/") || route.StartsWith("/courses/"))
             await page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true }).ClickAsync();
         await page.EvaluateAsync("window.savedStateDocument = 'original'");
         return page;

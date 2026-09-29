@@ -15,6 +15,7 @@ public sealed class FormDataPreservationTests(BrowserFixture fixture)
         var id = Id(course);
         var page = context.Pages.Single();
         await page.GotoAsync($"{fixture.BaseUrl}/#/courses/{id}");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true }).ClickAsync();
         await Assertions.Expect(page.GetByLabel("Description")).ToHaveValueAsync(description);
         await page.GetByLabel("Name", new() { Exact = true }).FillAsync("Updated course name");
         await SaveAsync(page, "Save changes", $"/api/courses/{id}");
@@ -22,6 +23,7 @@ public sealed class FormDataPreservationTests(BrowserFixture fixture)
         Assert.Equal("Updated course name", saved.GetProperty("name").GetString());
         Assert.Equal(description, saved.GetProperty("description").GetString());
         await page.ReloadAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true }).ClickAsync();
         await Assertions.Expect(page.GetByLabel("Description")).ToHaveValueAsync(description);
     }
 

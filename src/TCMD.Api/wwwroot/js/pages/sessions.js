@@ -12,15 +12,15 @@ export async function sessionDetail(id){
   attendance.replaceChildren(await roster(model));
  }
  summary.append(sessionSummary(model));
- if(isOperational())root.append(await sessionForm(model,model.trainingGroupId,true,showSaved));
  attendance.append(await roster(model));root.append(attendance);
+ if(isOperational())root.append(await sessionForm(model,model.trainingGroupId,true,showSaved));
  return root;
 }
 function sessionSummary(model){
- return el("div",{},el("header",{class:"entity-header"},el("div",{},el("h1",{text:date(model.sessionDate)}),el("div",{class:"entity-meta"},badge(model.status),el("span",{class:"muted",text:`${time(model.startTime)}–${time(model.endTime)}`})))),el("section",{class:"overview panel"},el("h2",{text:"Overview"}),el("div",{class:"overview-grid details"},detail("Session Date",date(model.sessionDate)),detail("Time",`${time(model.startTime)}–${time(model.endTime)} (Africa/Casablanca time)`),detail("Location",text(model.location)),detail("Status",badge(model.status)),detail("Training Group",el("a",{href:`#/groups/${model.trainingGroupId}?tab=sessions`,text:"View Training Group"})))));
+ return el("div",{},el("header",{class:"entity-header"},el("div",{},el("h1",{text:date(model.sessionDate)}),el("div",{class:"entity-meta"},badge(model.status),el("span",{class:"muted",text:`${time(model.startTime)}–${time(model.endTime)}`}),el("a",{href:`#/groups/${model.trainingGroupId}?tab=sessions`,text:"Training Group"})))),el("section",{class:"overview panel"},el("h2",{text:"Overview"}),el("div",{class:"overview-grid details"},detail("Training Group",el("a",{href:`#/groups/${model.trainingGroupId}?tab=sessions`,text:"View Training Group"})),detail("Session Date",date(model.sessionDate)),detail("Time",`${time(model.startTime)}–${time(model.endTime)}`),detail("Location",text(model.location)),detail("Timezone","Africa/Casablanca"),detail("Status",badge(model.status)))));
 }
 async function sessionForm(model,groupId,embedded=false,onSaved=async()=>{}){
- const creating=!model,root=el("section",{},el(embedded?"h2":"h1",{text:model?"Edit details":"Schedule Session"})),messages=el("div"),actions=el("div");
+ const creating=!model,root=el("section"),messages=el("div"),actions=el("div"),heading=el(embedded?"h2":"h1",{text:model?"Edit details":"Schedule Session"});
  const d=field("sessionDate","Session date",{type:"date",required:true,value:model?.sessionDate}),s=field("startTime","Start time",{type:"time",required:true,value:model?.startTime?.slice(0,5)}),e=field("endTime","End time",{type:"time",required:true,value:model?.endTime?.slice(0,5)}),loc=field("location","Location",{maxlength:500,value:model?.location});
  let stale=false,busy=false;
  const save=el("button",{text:model?"Save Session":"Schedule Session"});
@@ -30,7 +30,16 @@ async function sessionForm(model,groupId,embedded=false,onSaved=async()=>{}){
   const body={sessionDate:d.input.value,startTime:s.input.value,endTime:e.input.value,location:loc.input.value};
   if(model)body.rowVersion=model.rowVersion;
   await mutate(model?`/api/training-sessions/${model.id}`:`/api/training-groups/${groupId}/sessions`,model?'PUT':'POST',body);
- }},d.wrap,s.wrap,e.wrap,loc.wrap,el("p",{class:"muted",text:"Schedule values are in Africa/Casablanca time."}),el("div",{class:"actions"},save,!embedded?el("a",{class:"button secondary",href:`#/groups/${groupId}?tab=sessions`,text:"Cancel"}):null));
+ }},d.wrap,s.wrap,e.wrap,loc.wrap,el("p",{class:"muted",text:"Schedule values are in Africa/Casablanca time."}));
+ const formActions=el("div",{class:"actions"},save);form.append(formActions);
+ let editToggle,editRegion;
+ if(!embedded)formActions.append(el("a",{class:"button secondary",href:`#/groups/${groupId}?tab=sessions`,text:"Cancel"}));else{
+  editRegion=el("div",{id:"session-edit-region",hidden:true},heading,messages,form);
+  editToggle=el("button",{class:"secondary disclosure-control",type:"button","aria-expanded":"false","aria-controls":editRegion.id,text:"Edit details"});
+  const closeEditor=()=>{editRegion.hidden=true;editToggle.setAttribute("aria-expanded","false");editToggle.focus()};
+  editToggle.addEventListener("click",()=>{const opening=editRegion.hidden;editRegion.hidden=!opening;editToggle.setAttribute("aria-expanded",String(opening));if(opening)d.input.focus()});
+  formActions.append(el("button",{class:"secondary",type:"button","aria-label":"Cancel editing",text:"Cancel",onclick:()=>{d.input.value=model.sessionDate;s.input.value=model.startTime.slice(0,5);e.input.value=model.endTime.slice(0,5);loc.input.value=model.location||"";clearErrors(form);messages.replaceChildren();closeEditor()}}));
+ }
  function syncControls(){
   const locked=busy||stale||(model&&model.status!=='Scheduled');
   form.querySelectorAll('input,button').forEach(control=>control.disabled=!!locked);
@@ -64,7 +73,7 @@ async function sessionForm(model,groupId,embedded=false,onSaved=async()=>{}){
   if(!await confirmAction({title:`${action} Session`,message:`Confirm ${action} for this Session?`,confirmText:action,danger:action==='cancel'}))return;
   await mutate(`/api/training-sessions/${model.id}/${action}`,'POST',{rowVersion:model.rowVersion});
  }
- root.append(messages,form,actions);if(model)actions.append(statusButtons(model,changeStatus));syncControls();return root;
+ if(embedded)root.append(el("section",{class:"edit-disclosure"},editToggle,editRegion));else root.append(heading,messages,form);if(model){actions.append(statusButtons(model,changeStatus));root.append(actions)}syncControls();return root;
 }
 function statusButtons(model,onAction){
  const wrap=el("section",{class:"lifecycle-panel panel"},el("div",{},el("h2",{text:"Lifecycle actions"}),el("p",{class:"muted",text:"Complete or cancel this scheduled session."})),el("div",{class:"actions"}));

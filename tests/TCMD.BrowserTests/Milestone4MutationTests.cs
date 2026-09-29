@@ -215,9 +215,7 @@ public sealed class Milestone4MutationTests(BrowserFixture fixture)
         await page.GetByRole(AriaRole.Button, new() { Name = "Deactivate", Exact = true }).ClickAsync();
         await page.GetByRole(AriaRole.Dialog).GetByRole(AriaRole.Button, new() { Name = "Deactivate", Exact = true }).ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Status).Filter(new() { HasText = $"{singular} deactivated." })).ToBeVisibleAsync();
-        var status = kind == "students"
-            ? page.Locator(".entity-header").GetByText("Inactive", new() { Exact = true })
-            : page.GetByText("Inactive", new() { Exact = true });
+        var status = page.Locator(".entity-header").GetByText("Inactive", new() { Exact = true });
         await Assertions.Expect(status).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Deactivate", Exact = true })).ToHaveCountAsync(0);
         await AssertSameDocumentAsync(page);

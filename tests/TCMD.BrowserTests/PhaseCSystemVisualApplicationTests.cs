@@ -25,7 +25,8 @@ public sealed class PhaseCSystemVisualApplicationTests(BrowserFixture fixture)
         await page.GotoAsync($"{fixture.BaseUrl}/#/{route}/{Id(item)}");
         await Assertions.Expect(page.Locator(".entity-header")).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Overview", Exact = true })).ToBeVisibleAsync();
-        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Edit details", Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true })).ToHaveAttributeAsync("aria-expanded", "false");
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Edit details", Exact = true })).ToBeHiddenAsync();
         await Assertions.Expect(page.Locator(".danger-zone").GetByRole(AriaRole.Button, new() { Name = "Deactivate", Exact = true })).ToBeVisibleAsync();
     }
 
@@ -51,7 +52,8 @@ public sealed class PhaseCSystemVisualApplicationTests(BrowserFixture fixture)
         await page.GotoAsync($"{fixture.BaseUrl}/#/sessions/{Id(session)}");
         await Assertions.Expect(page.Locator(".entity-header")).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Overview", Exact = true })).ToBeVisibleAsync();
-        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Edit details", Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true })).ToHaveAttributeAsync("aria-expanded", "false");
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Edit details", Exact = true })).ToBeHiddenAsync();
         await Assertions.Expect(page.Locator(".lifecycle-panel").GetByRole(AriaRole.Button, new() { Name = "Complete", Exact = true })).ToBeVisibleAsync();
     }
 

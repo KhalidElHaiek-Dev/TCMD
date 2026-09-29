@@ -24,6 +24,7 @@ using System.Text.Json.Serialization;
 using TCMD.Infrastructure;
 using TCMD.Infrastructure.Identity;
 using TCMD.Infrastructure.Persistence;
+using TCMD.Api.Development;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -88,6 +89,7 @@ builder.Services.AddScoped<CompleteTrainingSession>();
 builder.Services.AddScoped<CancelTrainingSession>();
 builder.Services.AddScoped<StaffAccountAdministration>();
 builder.Services.AddScoped<RequestAccessResolver>();
+builder.Services.AddScoped<DemoDataSeeder>();
 var trainingCenterTimeZone = builder.Configuration["TrainingCenter:TimeZone"]
     ?? throw new InvalidOperationException("TrainingCenter:TimeZone is not configured.");
 builder.Services.AddInfrastructure(connectionString, trainingCenterTimeZone);
@@ -138,6 +140,12 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+
+if (args.Contains("--seed-demo", StringComparer.Ordinal))
+{
+    await DemoSeedCommand.RunAsync(app.Services, app.Environment);
+    return;
+}
 
 await BootstrapAdministrator.InitializeAsync(app.Services, app.Configuration);
 

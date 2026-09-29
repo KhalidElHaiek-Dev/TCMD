@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TCMD.Api.Development;
 using TCMD.Domain.Attendance;
+using TCMD.Domain.Enrollments;
 using TCMD.Domain.TrainingGroups;
+using TCMD.Domain.TrainingSessions;
 using TCMD.Infrastructure.Persistence;
 
 namespace TCMD.IntegrationTests;
@@ -37,15 +39,25 @@ public sealed class DemoDataSeederTests(TcmdApiFactory factory) : IAsyncLifetime
             .Select(student => student.Id).SingleAsync();
         Assert.Equal(2, await db.Enrollments.CountAsync(enrollment => enrollment.StudentId == amiraId));
 
+        var screenshotGroup = await db.TrainingGroups
+            .SingleAsync(group => group.Name == "Digital Operations — Autumn Cohort");
         var variedSession = await db.TrainingSessions
-            .Where(session => db.AttendanceRecords.Count(record => record.TrainingSessionId == session.Id) >= 4)
-            .Select(session => session.Id).FirstAsync();
+            .Where(session => session.TrainingGroupId == screenshotGroup.Id &&
+                session.Status == TrainingSessionStatus.Completed)
+            .OrderBy(session => session.SessionDate)
+            .ThenBy(session => session.StartTime)
+            .Select(session => session.Id)
+            .FirstAsync();
         var statuses = await db.AttendanceRecords.Where(record => record.TrainingSessionId == variedSession)
             .Select(record => record.Status).Distinct().ToListAsync();
         Assert.Contains(AttendanceStatus.Present, statuses);
         Assert.Contains(AttendanceStatus.Absent, statuses);
         Assert.Contains(AttendanceStatus.Late, statuses);
         Assert.Contains(AttendanceStatus.Excused, statuses);
+        Assert.True(await db.Enrollments.AnyAsync(enrollment =>
+            enrollment.TrainingGroupId == screenshotGroup.Id && enrollment.Status == EnrollmentStatus.Active &&
+            !db.AttendanceRecords.Any(record => record.TrainingSessionId == variedSession &&
+                record.EnrollmentId == enrollment.Id)));
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => seeder.SeedAsync());
         Assert.Contains("not empty", exception.Message, StringComparison.OrdinalIgnoreCase);

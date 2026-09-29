@@ -115,7 +115,8 @@ public sealed class PhaseBReferenceImplementationTests(BrowserFixture fixture)
         await page.GetByRole(AriaRole.Link, new() { Name = $"View {student.GetProperty("studentNumber").GetString()}" }).ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Phase B canonical student", Exact = true })).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Overview", Exact = true })).ToBeVisibleAsync();
-        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Edit details", Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true })).ToHaveAttributeAsync("aria-expanded", "false");
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Edit details", Exact = true })).ToBeHiddenAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Deactivate", Exact = true })).ToBeVisibleAsync();
         await page.GetByRole(AriaRole.Link, new() { Name = "Back to Students", Exact = false }).ClickAsync();
         await Assertions.Expect(page.GetByLabel("Search")).ToHaveValueAsync("Phase B canonical");

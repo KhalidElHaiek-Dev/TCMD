@@ -144,6 +144,8 @@ public sealed class Milestone5AccessibilityTests(BrowserFixture fixture)
         var page = context.Pages.Single();
         await page.GotoAsync($"{fixture.BaseUrl}/#/students/{student.GetProperty("id").GetString()}");
         var opener = page.GetByRole(AriaRole.Button, new() { Name = "Deactivate", Exact = true });
+        await Assertions.Expect(opener).ToBeVisibleAsync();
+        await opener.ScrollIntoViewIfNeededAsync();
         await Assertions.Expect(opener).ToBeInViewportAsync();
         await opener.ClickAsync();
         var dialog = page.GetByRole(AriaRole.Dialog);

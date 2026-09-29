@@ -79,6 +79,7 @@ public sealed class FormDataPreservationTests(BrowserFixture fixture)
 
         var page = context.Pages.Single();
         await page.GotoAsync($"{fixture.BaseUrl}/#/groups/{Id(group)}");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true }).ClickAsync();
         await ExpectCurrentInactiveAsync(page.GetByLabel("Course", new() { Exact = true }), Id(course));
         await ExpectCurrentInactiveAsync(page.GetByLabel("Primary Instructor"), Id(instructor));
         await ExpectMissingOptionAsync(page.GetByLabel("Course", new() { Exact = true }), Id(otherCourse));
@@ -95,6 +96,7 @@ public sealed class FormDataPreservationTests(BrowserFixture fixture)
         {
             var replacementCourse = await CreateCourseAsync(context);
             await page.ReloadAsync();
+            await page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true }).ClickAsync();
             await page.GetByLabel("Course", new() { Exact = true }).SelectOptionAsync(Id(replacementCourse));
             await page.GetByLabel("Primary Instructor").SelectOptionAsync("");
             await SaveAsync(page, "Save changes", $"/api/training-groups/{Id(group)}");
@@ -105,11 +107,13 @@ public sealed class FormDataPreservationTests(BrowserFixture fixture)
 
         var replacementInstructor = await CreateInstructorAsync(context);
         await page.ReloadAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true }).ClickAsync();
         await page.GetByLabel("Primary Instructor").SelectOptionAsync(Id(replacementInstructor));
         await SaveAsync(page, "Save changes", $"/api/training-groups/{Id(group)}");
         saved = await ApiAsync(context, $"/api/training-groups/{Id(group)}");
         Assert.Equal(Id(replacementInstructor), saved.GetProperty("primaryInstructorId").GetString());
         await page.ReloadAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true }).ClickAsync();
         await Assertions.Expect(page.GetByLabel("Primary Instructor")).ToHaveValueAsync(Id(replacementInstructor));
         await ExpectMissingOptionAsync(page.GetByLabel("Primary Instructor"), Id(instructor));
 

@@ -44,6 +44,8 @@ public sealed class PhaseCSystemVisualApplicationTests(BrowserFixture fixture)
         await Assertions.Expect(page.Locator(".overview").GetByText("Phase C Group Course (", new() { Exact = false })).ToBeVisibleAsync();
         await Assertions.Expect(page.Locator(".overview").GetByText("Phase C Group Instructor", new() { Exact = true })).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Navigation, new() { Name = "Training Group sections" })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true })).ToHaveAttributeAsync("aria-expanded", "false");
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Edit details", Exact = true })).ToBeHiddenAsync();
         await Assertions.Expect(page.Locator(".lifecycle-panel").GetByRole(AriaRole.Button, new() { Name = "Activate", Exact = true })).ToBeVisibleAsync();
 
         await page.GotoAsync($"{fixture.BaseUrl}/#/sessions/{Id(session)}");

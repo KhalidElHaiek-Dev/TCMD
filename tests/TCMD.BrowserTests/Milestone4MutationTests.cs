@@ -93,6 +93,7 @@ public sealed class Milestone4MutationTests(BrowserFixture fixture)
         var second = await CreateStudentAsync(context, "Enrollment second");
         var page = context.Pages.Single();
         await page.GotoAsync($"{fixture.BaseUrl}/#/groups/{Id(group)}?tab=enrollments");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true }).ClickAsync();
         await page.GetByLabel("Group name").FillAsync("unrelated unsaved group name");
         await MarkDocumentAsync(page);
 

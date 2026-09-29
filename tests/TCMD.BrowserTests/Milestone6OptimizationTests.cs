@@ -34,10 +34,12 @@ public sealed class Milestone6OptimizationTests(BrowserFixture fixture)
         });
 
         await page.GotoAsync($"{fixture.BaseUrl}/#/groups/{Id(group)}");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true }).ClickAsync();
         await page.GetByLabel("Group name").FillAsync("unsaved tab value");
         await page.GetByRole(AriaRole.Link, new() { Name = "Sessions", Exact = true }).ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Training Sessions", Exact = true })).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByLabel("Group name")).ToHaveValueAsync("unsaved tab value");
+        await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true })).ToHaveAttributeAsync("aria-expanded", "true");
         await page.GetByRole(AriaRole.Link, new() { Name = "Attendance", Exact = true }).ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Attendance history", Exact = true })).ToBeVisibleAsync();
 

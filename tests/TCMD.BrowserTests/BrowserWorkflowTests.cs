@@ -34,6 +34,7 @@ public sealed class BrowserWorkflowTests(BrowserFixture fixture)
         await ExpectHeading(page,$"Browser Student {suffix}");
         await Assertions.Expect(page.Locator(".entity-header").GetByText("Active",new(){Exact=true})).ToBeVisibleAsync();
         var studentId = page.Url.Split("#/students/")[1];
+        await page.GetByRole(AriaRole.Button,new(){Name="Edit details",Exact=true}).ClickAsync();
         await page.GetByLabel("Full name").FillAsync($"Attempted Student {suffix}");
         await page.EvaluateAsync("""async id => { const token=(await (await fetch('/api/auth/antiforgery')).json()).requestToken; const current=await (await fetch('/api/students/'+id)).json(); await fetch('/api/students/'+id,{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token},body:JSON.stringify({...current,fullName:'Concurrent Student'})}); }""", studentId);
         await page.GetByRole(AriaRole.Button,new(){Name="Save changes"}).ClickAsync();

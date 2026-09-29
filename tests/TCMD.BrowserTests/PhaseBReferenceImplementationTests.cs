@@ -7,7 +7,7 @@ namespace TCMD.BrowserTests;
 public sealed class PhaseBReferenceImplementationTests(BrowserFixture fixture)
 {
     [Fact]
-    public async Task AdministratorDashboard_ShowsMetricsActionsAndAttention_WithoutPerGroupReads()
+    public async Task AdministratorDashboard_ShowsMetricsActionsAndAttention_WithoutRedundantNavigationOrPerGroupReads()
     {
         await using var context = await SignInAsync(BrowserFixture.AdminUserName, BrowserFixture.AdminPassword);
         var page = context.Pages.Single();
@@ -32,6 +32,8 @@ public sealed class PhaseBReferenceImplementationTests(BrowserFixture fixture)
             await Assertions.Expect(page.GetByRole(AriaRole.Link, new() { Name = action, Exact = true }).First).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Groups requiring attention" })).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByText("Unassigned planned group", new() { Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.Locator("#main-content").GetByRole(AriaRole.Heading, new() { Name = "Navigation", Exact = true })).ToHaveCountAsync(0);
+        await Assertions.Expect(page.GetByRole(AriaRole.Navigation, new() { Name = "Primary" })).ToBeVisibleAsync();
         Assert.Equal(0, detailReads);
     }
 

@@ -103,6 +103,79 @@ public sealed class DetailHierarchyTests(BrowserFixture fixture)
     }
 
     [Theory]
+    [InlineData(1280)]
+    [InlineData(768)]
+    [InlineData(375)]
+    [InlineData(320)]
+    public async Task InstructorStaffAccount_PrioritizesAccessAndLinkBeforeMaintenanceAndLifecycle(int width)
+    {
+        await using var context = await SignInAsync(width);
+        var instructor = await ApiAsync(context, "/api/instructors", "POST", new
+        {
+            fullName = "Youssef Benali"
+        }, 201);
+        var account = await ApiAsync(context, "/api/staff-accounts", "POST", new
+        {
+            userName = width == 1280 ? "instructor.demo" : $"instructor.demo.{width}", displayName = "Demo Instructor",
+            password = "Password1", role = "Instructor"
+        }, 201);
+        await ApiAsync(context, $"/api/staff-accounts/{Id(account)}/instructor-link", "PUT", new
+        {
+            instructorId = Id(instructor)
+        });
+        var page = context.Pages.Single();
+
+        await page.GotoAsync($"{fixture.BaseUrl}/#/staff-accounts/{Id(account)}");
+
+        var headings = page.GetByRole(AriaRole.Heading, new() { Level = 2 });
+        await Assertions.Expect(headings).ToHaveTextAsync([
+            "Overview", "Role & access", "Instructor link", "Password replacement", "Activation / deactivation"
+        ]);
+        await Assertions.Expect(page.GetByLabel("Linked Instructor")).ToHaveValueAsync(Id(instructor));
+        await Assertions.Expect(page.GetByLabel("Linked Instructor").Locator("option:checked")).ToHaveTextAsync("Youssef Benali");
+        await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Change role", Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Update link", Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Replace password", Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Deactivate account", Exact = true })).ToBeVisibleAsync();
+        Assert.False(await page.EvaluateAsync<bool>("document.documentElement.scrollWidth > document.documentElement.clientWidth"));
+    }
+
+    [Fact]
+    public async Task InstructorStaffAccount_AllFourManagementWorkflowsRemainFunctional()
+    {
+        await using var context = await SignInAsync();
+        var originalInstructor = await ApiAsync(context, "/api/instructors", "POST", new { fullName = $"Original {Guid.NewGuid():N}" }, 201);
+        var replacementInstructor = await ApiAsync(context, "/api/instructors", "POST", new { fullName = $"Replacement {Guid.NewGuid():N}" }, 201);
+        var account = await ApiAsync(context, "/api/staff-accounts", "POST", new
+        {
+            userName = $"hierarchy-workflows-{Guid.NewGuid():N}", displayName = "Hierarchy workflows",
+            password = "Password1", role = "Instructor"
+        }, 201);
+        var accountPath = $"/api/staff-accounts/{Id(account)}";
+        await ApiAsync(context, $"{accountPath}/instructor-link", "PUT", new { instructorId = Id(originalInstructor) });
+        var page = context.Pages.Single();
+        await page.GotoAsync($"{fixture.BaseUrl}/#/staff-accounts/{Id(account)}");
+
+        await page.GetByLabel("Linked Instructor").SelectOptionAsync(Id(replacementInstructor));
+        await ConfirmAsync(page, "Update link");
+        await Assertions.Expect(page.GetByRole(AriaRole.Status)).ToContainTextAsync("Instructor link updated.");
+        await Assertions.Expect(page.GetByLabel("Linked Instructor")).ToHaveValueAsync(Id(replacementInstructor));
+
+        await page.GetByLabel("New password").FillAsync("Replacement1");
+        await ConfirmAsync(page, "Replace password");
+        await Assertions.Expect(page.GetByRole(AriaRole.Status)).ToContainTextAsync("Password replaced.");
+
+        await ConfirmAsync(page, "Deactivate account");
+        await Assertions.Expect(page.GetByRole(AriaRole.Status)).ToContainTextAsync("Account deactivated.");
+        await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Activate account", Exact = true })).ToBeVisibleAsync();
+
+        await page.GetByLabel("Role", new() { Exact = true }).SelectOptionAsync("Staff");
+        await ConfirmAsync(page, "Change role");
+        await Assertions.Expect(page.GetByRole(AriaRole.Status)).ToContainTextAsync("Account role updated.");
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Instructor link", Exact = true })).ToHaveCountAsync(0);
+    }
+
+    [Theory]
     [InlineData(320)]
     [InlineData(375)]
     [InlineData(768)]
@@ -152,6 +225,12 @@ public sealed class DetailHierarchyTests(BrowserFixture fixture)
 
     private static Task<bool> IsBeforeAsync(IPage page, string first, string second) =>
         page.EvaluateAsync<bool>("([first, second]) => Boolean(document.querySelector(first).compareDocumentPosition(document.querySelector(second)) & Node.DOCUMENT_POSITION_FOLLOWING)", new[] { first, second });
+
+    private static async Task ConfirmAsync(IPage page, string action)
+    {
+        await page.GetByRole(AriaRole.Button, new() { Name = action, Exact = true }).ClickAsync();
+        await page.GetByRole(AriaRole.Dialog).GetByRole(AriaRole.Button, new() { Name = "Confirm", Exact = true }).ClickAsync();
+    }
 
     private async Task<IBrowserContext> SignInAsync(int width = 1280)
     {

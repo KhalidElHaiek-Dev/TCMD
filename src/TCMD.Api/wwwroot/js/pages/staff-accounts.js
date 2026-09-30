@@ -9,7 +9,7 @@ async function controls(account,messages,onUpdated,getInstructors){
  const roleButton=el('button',{class:'secondary',text:'Change role',onclick:()=>mutate(roleButton,'Change role',`Change this account to ${role.input.value}?`,`/api/staff-accounts/${account.id}/role`,'PATCH',{role:role.input.value},'Account role updated.')});
  const passButton=el('button',{class:'secondary',text:'Replace password',onclick:()=>mutate(passButton,'Replace password','Replace this account password? Existing sessions will be invalidated.',`/api/staff-accounts/${account.id}/password`,'POST',{newPassword:password.input.value},'Password replaced.')});
  const activeButton=el('button',{class:account.isActive?'danger':'secondary',text:account.isActive?'Deactivate account':'Activate account',onclick:()=>mutate(activeButton,account.isActive?'Deactivate account':'Activate account',`${account.isActive?'Deactivate':'Activate'} this account?`,`/api/staff-accounts/${account.id}/active`,'PATCH',{isActive:!account.isActive},account.isActive?'Account deactivated.':'Account activated.')});
- section.append(el('div',{class:'panel'},el('h2',{text:'Role & access'}),role.wrap,roleButton),el('div',{class:'panel'},el('h2',{text:'Password replacement'}),password.wrap,passButton),el('div',{class:'panel danger-zone'},el('div',{},el('h2',{text:'Activation / deactivation'}),el('p',{text:'Control whether this account can sign in.'})),activeButton));
+ section.append(el('div',{class:'panel'},el('h2',{text:'Role & access'}),role.wrap,roleButton));
  if(account.role==='Instructor'){
   const instructors=await getInstructors(account.instructorId);
   if(!instructors.ok){section.append(problemView(instructors.problem,instructors.status));return section}
@@ -18,6 +18,7 @@ async function controls(account,messages,onUpdated,getInstructors){
    const linkButton=el('button',{class:'secondary',text:'Update link',onclick:()=>mutate(linkButton,'Update Instructor link','Replace or remove this Instructor link? The account session may be invalidated.',`/api/staff-accounts/${account.id}/instructor-link`,'PUT',{instructorId:link.input.value||null},'Instructor link updated.')});section.append(el('div',{class:'panel'},el('h2',{text:'Instructor link'}),link.wrap,linkButton));
   }
  }
+ section.append(el('div',{class:'panel'},el('h2',{text:'Password replacement'}),password.wrap,passButton),el('div',{class:'panel danger-zone'},el('div',{},el('h2',{text:'Activation / deactivation'}),el('p',{text:'Control whether this account can sign in.'})),activeButton));
  return section;
  async function mutate(button,title,message,url,method,body,success){if(button.disabled)return;messages.replaceChildren();if(!await confirmAction({title,message,confirmText:'Confirm',danger:title.startsWith('Deactivate')}))return;button.disabled=true;const r=await api(url,{method,body});if(r.ok)await onUpdated(r.data,success);else{messages.append(problemView(r.problem,r.status));button.disabled=false}}
 }

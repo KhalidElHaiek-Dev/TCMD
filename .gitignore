@@ -4,3 +4,25 @@ obj/
 *.user
 *.suo
 TestResults/
+
+# Local configuration and secrets
+.env
+.env.*
+secrets.json
+*.pfx
+*.p12
+*.pem
+*.key
+
+# Local databases and logs
+*.mdf
+*.ldf
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Standalone browser-test artifacts
+playwright-report/
+test-results/
+*trace*.zip

@@ -104,6 +104,7 @@ public sealed class DetailHierarchyTests(BrowserFixture fixture)
 
     [Theory]
     [InlineData(1280)]
+    [InlineData(1024)]
     [InlineData(768)]
     [InlineData(375)]
     [InlineData(320)]
@@ -137,6 +138,25 @@ public sealed class DetailHierarchyTests(BrowserFixture fixture)
         await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Update link", Exact = true })).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Replace password", Exact = true })).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Deactivate account", Exact = true })).ToBeVisibleAsync();
+        var grid = page.Locator(".account-sections");
+        await Assertions.Expect(grid.Locator(".overview")).ToHaveCountAsync(0);
+        Assert.True(await IsBeforeAsync(page, ".overview", ".account-sections"));
+        var columnCount = await grid.EvaluateAsync<int>("element => getComputedStyle(element).gridTemplateColumns.split(' ').length");
+        var positions = await grid.EvaluateAsync<int[][]>("element => [...element.children].map(panel => [panel.offsetTop, panel.offsetLeft])");
+        if (width > 768)
+        {
+            Assert.Equal(2, columnCount);
+            Assert.Equal(positions[0][0], positions[1][0]);
+            Assert.True(positions[0][1] < positions[1][1]);
+            Assert.Equal(positions[2][0], positions[3][0]);
+            Assert.True(positions[2][1] < positions[3][1]);
+            Assert.True(positions[0][0] < positions[2][0]);
+        }
+        else
+        {
+            Assert.Equal(1, columnCount);
+            Assert.True(positions.Zip(positions.Skip(1), (first, second) => first[0] < second[0]).All(result => result));
+        }
         Assert.False(await page.EvaluateAsync<bool>("document.documentElement.scrollWidth > document.documentElement.clientWidth"));
     }
 

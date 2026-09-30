@@ -4,6 +4,10 @@
 
 TCMD is a full-stack internal training-center management system built with ASP.NET Core, SQL Server, Entity Framework Core, and a same-origin native JavaScript frontend. It gives staff one place to manage Students, Instructors, Courses, Training Groups, Enrollments, Sessions, Attendance, and staff access throughout the training lifecycle.
 
+![TCMD administrator dashboard](docs/images/dashboard.png)
+
+*Administrator dashboard with operational metrics, attention items, and quick actions.*
+
 ## Project highlights
 
 - Role-based workflows for Administrator, Staff, and Instructor accounts.
@@ -16,7 +20,35 @@ TCMD is a full-stack internal training-center management system built with ASP.N
 
 ## Screenshots
 
-> Portfolio screenshots will be added in the next refinement pass.
+### Students
+
+Searchable student records with status filtering and direct record navigation.
+
+![TCMD student management screen](docs/images/students.png)
+
+### Training Sessions
+
+Training Group session scheduling with group context, operational tabs, and lifecycle statuses.
+
+![TCMD training group sessions screen](docs/images/training-group-sessions.png)
+
+### Attendance History
+
+Recorded attendance history with Present, Late, Absent, and Excused states plus correction notes.
+
+![TCMD attendance history screen](docs/images/attendance-history.png)
+
+### Staff Account Detail
+
+Administrator controls for role assignment, Instructor linking, password replacement, and account lifecycle.
+
+![TCMD staff account detail screen](docs/images/staff-account-detail.png)
+
+### Sign In
+
+Same-origin authenticated entry point for authorized training-center staff.
+
+![TCMD sign in screen](docs/images/login.png)
 
 ## Core workflows
 

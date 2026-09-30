@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 
 namespace TCMD.BrowserTests;
@@ -60,6 +61,10 @@ public sealed class DetailHierarchyTests(BrowserFixture fixture)
         var edit = page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true });
         await Assertions.Expect(page.Locator(".entity-header")).ToBeVisibleAsync();
         await Assertions.Expect(page.Locator(".overview")).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Navigation, new() { Name = "Training Group sections" }).GetByRole(AriaRole.Link)).ToHaveTextAsync(["Enrollments", "Sessions", "Attendance"]);
+        await Assertions.Expect(page.GetByRole(AriaRole.Link, new() { Name = "Overview", Exact = true })).ToHaveCountAsync(0);
+        await Assertions.Expect(page.GetByRole(AriaRole.Link, new() { Name = "Enrollments", Exact = true })).ToHaveAttributeAsync("aria-current", "page");
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Enrollments", Exact = true })).ToBeVisibleAsync();
         await Assertions.Expect(edit).ToHaveAttributeAsync("aria-expanded", "false");
         await Assertions.Expect(page.Locator("#group-edit-region")).ToBeHiddenAsync();
         Assert.True(await IsBeforeAsync(page, ".tabs", ".edit-disclosure"));
@@ -71,6 +76,30 @@ public sealed class DetailHierarchyTests(BrowserFixture fixture)
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Training Sessions", Exact = true })).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true })).ToHaveAttributeAsync("aria-expanded", "true");
         await Assertions.Expect(page.GetByLabel("Group name")).ToHaveValueAsync("Unsaved hierarchy group");
+    }
+
+    [Fact]
+    public async Task Group_LegacyOverviewTab_NormalizesToEnrollments()
+    {
+        await using var context = await SignInAsync();
+        var course = await ApiAsync(context, "/api/courses", "POST", new
+        {
+            code = $"LG{Guid.NewGuid():N}"[..20], name = "Legacy route course", description = ""
+        }, 201);
+        var group = await ApiAsync(context, "/api/training-groups", "POST", new
+        {
+            name = "Legacy route group", courseId = Id(course),
+            plannedStartDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            plannedEndDate = DateTime.UtcNow.AddDays(2).ToString("yyyy-MM-dd")
+        }, 201);
+        var page = context.Pages.Single();
+
+        await page.GotoAsync($"{fixture.BaseUrl}/#/groups/{Id(group)}?tab=overview");
+
+        await Assertions.Expect(page).ToHaveURLAsync(new Regex($@"#/groups/{Regex.Escape(Id(group))}\?tab=enrollments$"));
+        await Assertions.Expect(page.Locator(".overview")).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Link, new() { Name = "Enrollments", Exact = true })).ToHaveAttributeAsync("aria-current", "page");
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Enrollments", Exact = true })).ToBeVisibleAsync();
     }
 
     [Theory]
@@ -88,6 +117,36 @@ public sealed class DetailHierarchyTests(BrowserFixture fixture)
         await page.GotoAsync($"{fixture.BaseUrl}/#/students/{Id(student)}");
         await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true })).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Deactivate", Exact = true })).ToBeVisibleAsync();
+        Assert.False(await page.EvaluateAsync<bool>("document.documentElement.scrollWidth > document.documentElement.clientWidth"));
+    }
+
+    [Theory]
+    [InlineData(320)]
+    [InlineData(375)]
+    [InlineData(768)]
+    public async Task GroupOperationalTabsRemainReachableAtNarrowWidths(int width)
+    {
+        await using var context = await SignInAsync(width);
+        var course = await ApiAsync(context, "/api/courses", "POST", new
+        {
+            code = $"RW{width}{Guid.NewGuid():N}"[..20], name = $"Responsive group course {width}", description = ""
+        }, 201);
+        var group = await ApiAsync(context, "/api/training-groups", "POST", new
+        {
+            name = $"Responsive group {width}", courseId = Id(course),
+            plannedStartDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            plannedEndDate = DateTime.UtcNow.AddDays(2).ToString("yyyy-MM-dd")
+        }, 201);
+        var page = context.Pages.Single();
+
+        await page.GotoAsync($"{fixture.BaseUrl}/#/groups/{Id(group)}");
+
+        var tabs = page.GetByRole(AriaRole.Navigation, new() { Name = "Training Group sections" });
+        await Assertions.Expect(tabs.GetByRole(AriaRole.Link)).ToHaveTextAsync(["Enrollments", "Sessions", "Attendance"]);
+        await Assertions.Expect(tabs.GetByRole(AriaRole.Link, new() { Name = "Attendance", Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Lifecycle actions", Exact = true })).ToBeVisibleAsync();
+        Assert.True(await tabs.EvaluateAsync<bool>("element => element.scrollWidth >= element.clientWidth"));
         Assert.False(await page.EvaluateAsync<bool>("document.documentElement.scrollWidth > document.documentElement.clientWidth"));
     }
 

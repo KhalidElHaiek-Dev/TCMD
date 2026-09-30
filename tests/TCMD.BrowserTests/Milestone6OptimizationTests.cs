@@ -42,6 +42,9 @@ public sealed class Milestone6OptimizationTests(BrowserFixture fixture)
         await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Edit details", Exact = true })).ToHaveAttributeAsync("aria-expanded", "true");
         await page.GetByRole(AriaRole.Link, new() { Name = "Attendance", Exact = true }).ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Attendance history", Exact = true })).ToBeVisibleAsync();
+        await page.GetByRole(AriaRole.Link, new() { Name = "Enrollments", Exact = true }).ClickAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Enrollments", Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByLabel("Group name")).ToHaveValueAsync("unsaved tab value");
 
         Assert.Equal(1, groupReads);
         Assert.Equal(1, courseReads);

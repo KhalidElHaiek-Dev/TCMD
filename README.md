@@ -2,6 +2,8 @@
 
 **Training Center Management Dashboard**
 
+[![TCMD CI](https://github.com/KhalidElHaiek-Dev/TCMD/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/KhalidElHaiek-Dev/TCMD/actions/workflows/ci.yml)
+
 TCMD is a full-stack internal training-center management system built with ASP.NET Core, SQL Server, Entity Framework Core, and a same-origin native JavaScript frontend. It gives staff one place to manage Students, Instructors, Courses, Training Groups, Enrollments, Sessions, Attendance, and staff access throughout the training lifecycle.
 
 ![TCMD administrator dashboard](docs/images/dashboard.png)

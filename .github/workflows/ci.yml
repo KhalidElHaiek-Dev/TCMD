@@ -1,0 +1,110 @@
+name: TCMD CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Display .NET information
+        run: dotnet --info
+
+      - name: Verify SQL Server LocalDB
+        shell: pwsh
+        run: |
+          $instances = @(sqllocaldb info)
+          $instances
+
+          if ($instances -notcontains "MSSQLLocalDB") {
+            sqllocaldb create MSSQLLocalDB
+          }
+
+          sqllocaldb start MSSQLLocalDB
+          sqllocaldb info MSSQLLocalDB
+
+      - name: Restore .NET tools
+        run: dotnet tool restore
+
+      - name: Restore solution
+        run: dotnet restore TCMD.slnx
+
+      - name: Restore BrowserTests
+        run: dotnet restore tests/TCMD.BrowserTests/TCMD.BrowserTests.csproj
+
+      - name: Build solution
+        run: dotnet build TCMD.slnx --configuration Release --no-restore
+
+      - name: Build BrowserTests
+        run: dotnet build tests/TCMD.BrowserTests/TCMD.BrowserTests.csproj --configuration Release --no-restore
+
+      - name: Run DomainTests
+        run: >-
+          dotnet test tests/TCMD.DomainTests/TCMD.DomainTests.csproj
+          --configuration Release
+          --no-build
+          --no-restore
+          --logger "trx;LogFileName=domain-tests.trx"
+          --results-directory TestResults/Domain
+
+      - name: Run IntegrationTests
+        run: >-
+          dotnet test tests/TCMD.IntegrationTests/TCMD.IntegrationTests.csproj
+          --configuration Release
+          --no-build
+          --no-restore
+          --logger "trx;LogFileName=integration-tests.trx"
+          --results-directory TestResults/Integration
+
+      - name: Install Playwright Chromium
+        shell: pwsh
+        run: |
+          $playwrightScript = Get-ChildItem tests/TCMD.BrowserTests/bin/Release -Recurse -Filter playwright.ps1 |
+            Select-Object -First 1
+
+          if ($null -eq $playwrightScript) {
+            throw "The BrowserTests build did not produce playwright.ps1."
+          }
+
+          & $playwrightScript.FullName install chromium
+
+      - name: Run BrowserTests
+        run: >-
+          dotnet test tests/TCMD.BrowserTests/TCMD.BrowserTests.csproj
+          --configuration Release
+          --no-build
+          --no-restore
+          --logger "trx;LogFileName=browser-tests.trx"
+          --results-directory TestResults/Browser
+
+      - name: Upload BrowserTests failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-test-failure-artifacts
+          path: |
+            TestResults/Browser/**
+            tests/TCMD.BrowserTests/bin/**/browser-*-failure.png
+            tests/TCMD.BrowserTests/bin/**/browser-*-trace.zip
+            tests/TCMD.BrowserTests/bin/**/active-student-selection-failure.png
+            tests/TCMD.BrowserTests/bin/**/initial-login-failure.png
+          if-no-files-found: ignore
+          retention-days: 7

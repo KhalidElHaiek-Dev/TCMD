@@ -1,82 +1,586 @@
-import{api}from"../api-client.js";import{session,isOperational}from"../auth.js";import{el,field}from"../dom.js";import{loading,empty,badge,table,confirmAction,pageHeader}from"../components.js";import{applyRecordProblem,clearErrors,problemView}from"../problem-details.js";import{date,time,text}from"../formatters.js";
-let groupPageCache=null;
-const groupListState={search:"",status:""};
-export function clearGroupPageCache(id){if(!id||groupPageCache?.id!==id)groupPageCache=null}
-export async function groupList(){const operational=isOperational(),root=el("div",{},pageHeader({title:operational?"Training Groups":"My Groups",description:operational?"Plan and manage training delivery.":"View the training groups assigned to you.",actions:operational?[el("a",{class:"button",href:"#/groups/new",text:"Create Training Group"})]:[]})),results=el("div"),search=field("search","Search",{value:groupListState.search}),status=field("status","Status",{tag:"select",value:groupListState.status,items:[{value:"",label:"All statuses"},...['Planned','Active','Completed','Cancelled'].map(x=>({value:x,label:x}))]});search.wrap.classList.add("toolbar-search");let controller;const clear=el("button",{class:"secondary",type:"button",text:"Clear filters"});const load=async()=>{controller?.abort();controller=new AbortController();groupListState.search=search.input.value.trim();groupListState.status=status.input.value;clear.hidden=!groupListState.search&&!groupListState.status;results.replaceChildren(loading());const p=new URLSearchParams();if(groupListState.search)p.set("search",groupListState.search);if(groupListState.status)p.set("status",groupListState.status);const r=await api(`/api/training-groups?${p}`,{signal:controller.signal});if(r.aborted)return;if(!r.ok){results.replaceChildren(problemView(r.problem,r.status));return}results.replaceChildren(r.data.length?table("Training Groups",[{label:"Group name",render:x=>el("strong",{class:"primary-value",text:x.name})},{label:"Planned dates",render:x=>`${date(x.plannedStartDate)} – ${date(x.plannedEndDate)}`},{label:"Status",render:x=>badge(x.status)},{label:"Actions",render:x=>el("a",{href:`#/groups/${x.id}`,text:"View"})}],r.data):empty(operational?"No training groups found.":"No training groups are currently assigned to you."))};clear.addEventListener("click",()=>{search.input.value="";status.input.value="";load()});const form=el("form",{class:"toolbar student-filters",onsubmit:e=>{e.preventDefault();load()}},search.wrap,status.wrap,el("button",{text:"Search"}),clear);root.append(form,results);await load();return root}
-export async function groupDetail(id,query){const creating=id==="new",operational=isOperational(),root=el("div",{},creating?null:el("h1",{class:"sr-only",text:"Training Group"})),message=el("div"),requestedTab=query.get("tab"),currentTab=['enrollments','sessions','attendance'].includes(requestedTab)?requestedTab:'enrollments';if(!creating&&requestedTab==='overview')history.replaceState(history.state,"",`#/groups/${id}?tab=enrollments`);let model=null;if(!creating){if(groupPageCache?.id===id)model=groupPageCache.model;else{root.append(loading());const r=await api(`/api/training-groups/${id}`);root.lastChild.remove();if(!r.ok){root.append(problemView(r.problem,r.status));return root}model=r.data;groupPageCache={id,model,draft:null,references:null,editExpanded:false}}}if(creating&&!operational)return problemView({title:"You do not have permission to perform this action."},403);
- if(operational){let references=groupPageCache?.id===id?groupPageCache.references:null;if(!references){const [courses,instructors]=await Promise.all([api('/api/courses?isActive=true'),api('/api/instructors?isActive=true')]);if(!courses.ok||!instructors.ok){root.append(problemView((!courses.ok?courses:instructors).problem,500));return root}references={courses,instructors};if(!creating)groupPageCache.references=references}const {courses,instructors}=references;
- // Preserve saved relationships without offering other inactive records for assignment.
- for(const [records,path,currentId] of [[courses.data,"courses",model?.courseId],[instructors.data,"instructors",model?.primaryInstructorId]]){
-  if(currentId&&!records.some(x=>x.id===currentId)){
-   const current=await api(`/api/${path}/${currentId}`);
-   if(!current.ok){root.append(problemView(current.problem,current.status));return root}
-   records.push(current.data);
+import {api} from "../api-client.js";
+import {session, isOperational} from "../auth.js";
+import {el, field} from "../dom.js";
+import {loading, empty, badge, table, confirmAction, pageHeader} from "../components.js";
+import {applyRecordProblem, clearErrors, problemView} from "../problem-details.js";
+import {date, time, text} from "../formatters.js";
+let groupPageCache = null;
+const groupListState = {
+  search: "",
+  status: ""
+};
+export function clearGroupPageCache(id) {
+  if (!id || groupPageCache?.id !== id)
+    groupPageCache = null
+}
+export async function groupList() {
+  const operational = isOperational(),
+        root =
+            el("div", {}, pageHeader({
+                 title: operational ? "Training Groups" : "My Groups",
+                 description: operational ? "Plan and manage training delivery." :
+                                            "View the training groups assigned to you.",
+                 actions: operational ?
+                     [el("a",
+                         {class: "button", href: "#/groups/new", text: "Create Training Group"})] :
+                     []
+               })),
+        results = el("div"), search = field("search", "Search", {value: groupListState.search}),
+        status = field("status", "Status", {
+          tag: "select",
+          value: groupListState.status,
+          items: [
+            {value: "", label: "All statuses"},
+            ...['Planned', 'Active', 'Completed', 'Cancelled'].map(x => ({value: x, label: x}))
+          ]
+        });
+  search.wrap.classList.add("toolbar-search");
+  let controller;
+  const clear = el("button", {class: "secondary", type: "button", text: "Clear filters"});
+  const load = async () => {
+    controller?.abort();
+    controller = new AbortController();
+    groupListState.search = search.input.value.trim();
+    groupListState.status = status.input.value;
+    clear.hidden = !groupListState.search && !groupListState.status;
+    results.replaceChildren(loading());
+    const p = new URLSearchParams();
+    if (groupListState.search)
+      p.set("search", groupListState.search);
+    if (groupListState.status)
+      p.set("status", groupListState.status);
+    const r = await api(`/api/training-groups?${p}`, {signal: controller.signal});
+    if (r.aborted)
+      return;
+    if (!r.ok) {
+      results.replaceChildren(problemView(r.problem, r.status));
+      return
+    }
+    results.replaceChildren(
+        r.data.length ?
+            table(
+                "Training Groups",
+                [
+                  {
+                    label: "Group name",
+                    render: x => el("strong", {class: "primary-value", text: x.name})
+                  },
+                  {
+                    label: "Planned dates",
+                    render: x => `${date(x.plannedStartDate)} – ${date(x.plannedEndDate)}`
+                  },
+                  {label: "Status", render: x => badge(x.status)},
+                  {label: "Actions", render: x => el("a", {href: `#/groups/${x.id}`, text: "View"})}
+                ],
+                r.data) :
+            empty(
+                operational ? "No training groups found." :
+                              "No training groups are currently assigned to you."))
+  };
+  clear.addEventListener("click", () => {
+    search.input.value = "";
+    status.input.value = "";
+    load()
+  });
+  const form =
+      el("form", {
+        class: "toolbar student-filters",
+        onsubmit: e => {
+          e.preventDefault();
+          load()
+        }
+      },
+         search.wrap, status.wrap, el("button", {text: "Search"}), clear);
+  root.append(form, results);
+  await load();
+  return root
+}
+export async function groupDetail(id, query) {
+  const creating = id === "new", operational = isOperational(),
+        root =
+            el("div", {}, creating ? null : el("h1", {class: "sr-only", text: "Training Group"})),
+        message = el("div"), requestedTab = query.get("tab"),
+        currentTab = ['enrollments', 'sessions', 'attendance'].includes(requestedTab) ?
+      requestedTab :
+      'enrollments';
+  if (!creating && requestedTab === 'overview')
+    history.replaceState(history.state, "", `#/groups/${id}?tab=enrollments`);
+  let model = null;
+  if (!creating) {
+    if (groupPageCache?.id === id)
+      model = groupPageCache.model;
+    else {
+      root.append(loading());
+      const r = await api(`/api/training-groups/${id}`);
+      root.lastChild.remove();
+      if (!r.ok) {
+        root.append(problemView(r.problem, r.status));
+        return root
+      }
+      model = r.data;
+      groupPageCache = { id, model, draft: null, references: null, editExpanded: false }
+    }
   }
- }
- const draft=groupPageCache?.id===id?groupPageCache.draft:null;const name=field("name","Group name",{required:true,maxlength:200,value:draft?.name??model?.name}),course=field("courseId","Course",{tag:"select",required:true,value:draft?.courseId??model?.courseId,items:[{value:"",label:"Select a course"},...courses.data.map(x=>({value:x.id,label:`${x.code} — ${x.name}${x.isActive?"":" (inactive, current)"}`,disabled:!x.isActive}))]}),instructor=field("primaryInstructorId","Primary Instructor",{tag:"select",value:draft?.primaryInstructorId??model?.primaryInstructorId??"",items:[{value:"",label:"Not assigned"},...instructors.data.map(x=>({value:x.id,label:`${x.fullName}${x.isActive?"":" (inactive, current)"}`,disabled:!x.isActive}))]}),start=field("plannedStartDate","Planned start",{type:"date",required:true,value:draft?.plannedStartDate??model?.plannedStartDate}),end=field("plannedEndDate","Planned end",{type:"date",required:true,value:draft?.plannedEndDate??model?.plannedEndDate});let stale=false,busy=false;
- const rememberDraft=()=>{if(groupPageCache?.id===id)groupPageCache.draft={name:name.input.value,courseId:course.input.value,primaryInstructorId:instructor.input.value,plannedStartDate:start.input.value,plannedEndDate:end.input.value}};
- for(const control of [name.input,course.input,instructor.input,start.input,end.input])control.addEventListener("input",rememberDraft);
- if(creating)root.append(pageHeader({title:"Create Training Group",description:"Set the course, Instructor, and planned delivery dates."}));else root.append(el("a",{class:"back-link",href:"#/groups",text:"← Back to Training Groups"}));const details=el("div"),actions=el("div"),save=el("button",{text:creating?"Create Group":"Save changes"});
- const form=el("form",{class:"panel entity-form",id:creating?null:"group-edit-region",onsubmit:async e=>{
-  e.preventDefault();if(stale||busy||!form.reportValidity())return;
-  const body={name:name.input.value,courseId:course.input.value,primaryInstructorId:instructor.input.value||null,plannedStartDate:start.input.value,plannedEndDate:end.input.value};
-  if(model)body.rowVersion=model.rowVersion;
-  await mutate(creating?'/api/training-groups':`/api/training-groups/${id}`,creating?'POST':'PUT',body);
- }},el("h2",{text:creating?"Group details":"Edit details"}),name.wrap,course.wrap,instructor.wrap,start.wrap,end.wrap);
- const formActions=el("div",{class:"actions"},save);form.append(formActions);
- let editToggle;
- if(creating)formActions.append(el("a",{class:"button secondary",href:"#/groups",text:"Cancel"}));else{
-  const expanded=groupPageCache?.editExpanded===true;form.hidden=!expanded;
-  editToggle=el("button",{class:"secondary disclosure-control",type:"button","aria-expanded":String(expanded),"aria-controls":form.id,text:"Edit details"});
-  const closeEditor=()=>{form.hidden=true;editToggle.setAttribute("aria-expanded","false");if(groupPageCache?.id===id)groupPageCache.editExpanded=false;editToggle.focus()};
-  editToggle.addEventListener("click",()=>{const opening=form.hidden;form.hidden=!opening;editToggle.setAttribute("aria-expanded",String(opening));if(groupPageCache?.id===id)groupPageCache.editExpanded=opening;if(opening)name.input.focus()});
-  formActions.append(el("button",{class:"secondary",type:"button","aria-label":"Cancel editing",text:"Cancel",onclick:()=>{name.input.value=model.name;course.input.value=model.courseId;instructor.input.value=model.primaryInstructorId||"";start.input.value=model.plannedStartDate;end.input.value=model.plannedEndDate;if(groupPageCache?.id===id)groupPageCache.draft=null;clearErrors(form);message.replaceChildren();closeEditor()}}));
- }
- function syncControls(){
-  const locked=busy||stale||['Completed','Cancelled'].includes(model?.status);
-  form.querySelectorAll('input,select,button').forEach(control=>control.disabled=locked);
-  actions.querySelectorAll('button').forEach(button=>button.disabled=busy||stale);
- }
- function accept(next){
-  model=next;stale=false;clearErrors(form);
-  if(groupPageCache?.id===id){groupPageCache.model=next;groupPageCache.draft=null}
-  name.input.value=model.name;course.input.value=model.courseId;instructor.input.value=model.primaryInstructorId||"";
-  start.input.value=model.plannedStartDate;end.input.value=model.plannedEndDate;
-  // A replaced inactive relationship is no longer a current option.
-  for(const control of [course.input,instructor.input])for(const option of control.querySelectorAll('option:disabled'))if(option.value!==control.value)option.remove();
-  courses.data=courses.data.filter(x=>x.isActive||x.id===model.courseId);instructors.data=instructors.data.filter(x=>x.isActive||x.id===model.primaryInstructorId);
-  details.replaceChildren(summary(model,references));actions.replaceChildren(statusActions(model,changeStatus));
-  message.replaceChildren(el("div",{class:"alert alert-success",role:"status",text:"Changes saved."}));
- }
- async function mutate(path,method,body){
-  if(busy||stale)return;busy=true;syncControls();message.replaceChildren();
-  try{
-   const r=await api(path,{method,body});
-   if(r.ok){if(creating){model=r.data;groupPageCache={id:model.id,model,draft:null,references};location.hash=`#/groups/${model.id}`}else accept(r.data)}
-   else stale=await applyRecordProblem(form,message,r,`/api/training-groups/${id}`,model?.rowVersion,()=>location.reload());
-  }finally{busy=false;syncControls()}
- }
- async function changeStatus(action){
-  if(busy||stale)return;
-  if(!await confirmAction({title:`${action} Training Group`,message:`Confirm ${action} for this Training Group?`,confirmText:action,danger:action==='cancel'}))return;
-  await mutate(`/api/training-groups/${model.id}/${action}`,'POST',{rowVersion:model.rowVersion});
- }
- root.append(message,details);if(model){details.append(summary(model,references));root.append(tabs(id,currentTab),await tabContent(model,currentTab,operational),el("section",{class:"edit-disclosure"},editToggle,form));actions.append(statusActions(model,changeStatus));root.append(actions)}else root.append(form);syncControls();
- }else root.append(summary(model));
- if(model&&!operational)root.append(tabs(id,currentTab),await tabContent(model,currentTab,operational));return root;
+  if (creating && !operational)
+    return problemView({title: "You do not have permission to perform this action."}, 403);
+  if (operational) {
+    let references = groupPageCache?.id === id ? groupPageCache.references : null;
+    if (!references) {
+      const [courses, instructors] = await Promise.all(
+          [api('/api/courses?isActive=true'), api('/api/instructors?isActive=true')]);
+      if (!courses.ok || !instructors.ok) {
+        root.append(problemView((!courses.ok ? courses : instructors).problem, 500));
+        return root
+      }
+      references = {courses, instructors};
+      if (!creating)
+        groupPageCache.references = references
+    }
+    const {courses, instructors} = references;
+    // Preserve saved relationships without offering other inactive records for assignment.
+    for (const [records, path, currentId] of [
+             [courses.data, "courses", model?.courseId],
+             [instructors.data, "instructors", model?.primaryInstructorId]]) {
+      if (currentId && !records.some(x => x.id === currentId)) {
+        const current = await api(`/api/${path}/${currentId}`);
+        if (!current.ok) {
+          root.append(problemView(current.problem, current.status));
+          return root
+        }
+        records.push(current.data);
+      }
+    }
+    const draft = groupPageCache?.id === id ? groupPageCache.draft : null;
+    const name = field(
+              "name", "Group name",
+              {required: true, maxlength: 200, value: draft?.name ?? model?.name}),
+          course = field("courseId", "Course", {
+            tag: "select",
+            required: true,
+            value: draft?.courseId ?? model?.courseId,
+            items: [
+              {value: "", label: "Select a course"},
+              ...courses.data.map(
+                  x => ({
+                    value: x.id,
+                    label: `${x.code} — ${x.name}${x.isActive ? "" : " (inactive, current)"}`,
+                    disabled: !x.isActive
+                  }))
+            ]
+          }),
+          instructor = field("primaryInstructorId", "Primary Instructor", {
+            tag: "select",
+            value: draft?.primaryInstructorId ?? model?.primaryInstructorId ?? "",
+            items: [
+              {value: "", label: "Not assigned"},
+              ...instructors.data.map(
+                  x => ({
+                    value: x.id,
+                    label: `${x.fullName}${x.isActive ? "" : " (inactive, current)"}`,
+                    disabled: !x.isActive
+                  }))
+            ]
+          }),
+          start = field("plannedStartDate", "Planned start", {
+            type: "date",
+            required: true,
+            value: draft?.plannedStartDate ?? model?.plannedStartDate
+          }),
+          end = field("plannedEndDate", "Planned end", {
+            type: "date",
+            required: true,
+            value: draft?.plannedEndDate ?? model?.plannedEndDate
+          });
+    let stale = false, busy = false;
+    const rememberDraft = () => {
+      if (groupPageCache?.id === id)
+        groupPageCache.draft = {
+          name: name.input.value,
+          courseId: course.input.value,
+          primaryInstructorId: instructor.input.value,
+          plannedStartDate: start.input.value,
+          plannedEndDate: end.input.value
+        }
+    };
+    for (const control of [name.input, course.input, instructor.input, start.input, end.input])
+      control.addEventListener("input", rememberDraft);
+    if (creating)
+      root.append(pageHeader({
+        title: "Create Training Group",
+        description: "Set the course, Instructor, and planned delivery dates."
+      }));
+    else
+      root.append(
+          el("a", {class: "back-link", href: "#/groups", text: "← Back to Training Groups"}));
+    const details = el("div"), actions = el("div"),
+          save = el("button", {text: creating ? "Create Group" : "Save changes"});
+    const form =
+        el("form", {
+          class: "panel entity-form",
+          id: creating ? null : "group-edit-region",
+          onsubmit: async e => {
+            e.preventDefault();
+            if (stale || busy || !form.reportValidity())
+              return;
+            const body = {
+              name: name.input.value,
+              courseId: course.input.value,
+              primaryInstructorId: instructor.input.value || null,
+              plannedStartDate: start.input.value,
+              plannedEndDate: end.input.value
+            };
+            if (model)
+              body.rowVersion = model.rowVersion;
+            await mutate(
+                creating ? '/api/training-groups' : `/api/training-groups/${id}`,
+                creating ? 'POST' : 'PUT', body);
+          }
+        },
+           el("h2", {text: creating ? "Group details" : "Edit details"}), name.wrap, course.wrap,
+           instructor.wrap, start.wrap, end.wrap);
+    const formActions = el("div", {class: "actions"}, save);
+    form.append(formActions);
+    let editToggle;
+    if (creating)
+      formActions.append(el("a", {class: "button secondary", href: "#/groups", text: "Cancel"}));
+    else {
+      const expanded = groupPageCache?.editExpanded === true;
+      form.hidden = !expanded;
+      editToggle = el("button", {
+        class: "secondary disclosure-control",
+        type: "button",
+        "aria-expanded": String(expanded),
+        "aria-controls": form.id,
+        text: "Edit details"
+      });
+      const closeEditor = () => {
+        form.hidden = true;
+        editToggle.setAttribute("aria-expanded", "false");
+        if (groupPageCache?.id === id)
+          groupPageCache.editExpanded = false;
+        editToggle.focus()
+      };
+      editToggle.addEventListener("click", () => {
+        const opening = form.hidden;
+        form.hidden = !opening;
+        editToggle.setAttribute("aria-expanded", String(opening));
+        if (groupPageCache?.id === id)
+          groupPageCache.editExpanded = opening;
+        if (opening)
+          name.input.focus()
+      });
+      formActions.append(el("button", {
+        class: "secondary",
+        type: "button",
+        "aria-label": "Cancel editing",
+        text: "Cancel",
+        onclick: () => {
+          name.input.value = model.name;
+          course.input.value = model.courseId;
+          instructor.input.value = model.primaryInstructorId || "";
+          start.input.value = model.plannedStartDate;
+          end.input.value = model.plannedEndDate;
+          if (groupPageCache?.id === id)
+            groupPageCache.draft = null;
+          clearErrors(form);
+          message.replaceChildren();
+          closeEditor()
+        }
+      }));
+    }
+    function syncControls() {
+      const locked = busy || stale || ['Completed', 'Cancelled'].includes(model?.status);
+      form.querySelectorAll('input,select,button').forEach(control => control.disabled = locked);
+      actions.querySelectorAll('button').forEach(button => button.disabled = busy || stale);
+    }
+    function accept(next) {
+      model = next;
+      stale = false;
+      clearErrors(form);
+      if (groupPageCache?.id === id) {
+        groupPageCache.model = next;
+        groupPageCache.draft = null
+      }
+      name.input.value = model.name;
+      course.input.value = model.courseId;
+      instructor.input.value = model.primaryInstructorId || "";
+      start.input.value = model.plannedStartDate;
+      end.input.value = model.plannedEndDate;
+      // A replaced inactive relationship is no longer a current option.
+      for (const control of [course.input, instructor.input])
+        for (const option of control.querySelectorAll('option:disabled'))
+          if (option.value !== control.value)
+            option.remove();
+      courses.data = courses.data.filter(x => x.isActive || x.id === model.courseId);
+      instructors.data =
+          instructors.data.filter(x => x.isActive || x.id === model.primaryInstructorId);
+      details.replaceChildren(summary(model, references));
+      actions.replaceChildren(statusActions(model, changeStatus));
+      message.replaceChildren(
+          el("div", {class: "alert alert-success", role: "status", text: "Changes saved."}));
+    }
+    async function mutate(path, method, body) {
+      if (busy || stale)
+        return;
+      busy = true;
+      syncControls();
+      message.replaceChildren();
+      try {
+        const r = await api(path, {method, body});
+        if (r.ok) {
+          if (creating) {
+            model = r.data;
+            groupPageCache = {id: model.id, model, draft: null, references};
+            location.hash = `#/groups/${model.id}`
+          } else
+            accept(r.data)
+        } else
+          stale = await applyRecordProblem(
+              form, message, r, `/api/training-groups/${id}`, model?.rowVersion,
+              () => location.reload());
+      } finally {
+        busy = false;
+        syncControls()
+      }
+    }
+    async function changeStatus(action) {
+      if (busy || stale)
+        return;
+      if (!await confirmAction({
+            title: `${action} Training Group`,
+            message: `Confirm ${action} for this Training Group?`,
+            confirmText: action,
+            danger: action === 'cancel'
+          }))
+        return;
+      await mutate(
+          `/api/training-groups/${model.id}/${action}`, 'POST', {rowVersion: model.rowVersion});
+    }
+    root.append(message, details);
+    if (model) {
+      details.append(summary(model, references));
+      root.append(
+          tabs(id, currentTab), await tabContent(model, currentTab, operational),
+          el("section", {class: "edit-disclosure"}, editToggle, form));
+      actions.append(statusActions(model, changeStatus));
+      root.append(actions)
+    } else
+      root.append(form);
+    syncControls();
+  } else
+    root.append(summary(model));
+  if (model && !operational)
+    root.append(tabs(id, currentTab), await tabContent(model, currentTab, operational));
+  return root;
 }
-function summary(m,references){const course=references?.courses.data.find(x=>x.id===m.courseId),instructor=references?.instructors.data.find(x=>x.id===m.primaryInstructorId);return el("div",{},el("header",{class:"entity-header"},el("div",{},el("h1",{text:m.name}),el("div",{class:"entity-meta"},badge(m.status),el("span",{class:"muted",text:`${date(m.plannedStartDate)} – ${date(m.plannedEndDate)}`})))),el("section",{class:"overview panel"},el("h2",{text:"Overview"}),el("div",{class:"overview-grid details"},detail("Name",m.name),detail("Course",course?`${course.name} (${course.code})`:"Course details unavailable"),detail("Primary Instructor",instructor?.fullName||"Not assigned"),detail("Planned dates",`${date(m.plannedStartDate)} – ${date(m.plannedEndDate)}`),detail("Status",badge(m.status))))) }
-function detail(label,value){return el("dl",{class:"detail"},el("dt",{text:label}),el("dd",{},value?.nodeType?value:text(value)))}
-function tabs(id,current){return el("nav",{class:"tabs","aria-label":"Training Group sections"},['enrollments','sessions','attendance'].map(x=>el("a",{href:`#/groups/${id}?tab=${x}`,"aria-current":current===x?"page":null,text:x[0].toUpperCase()+x.slice(1)})))}
-function statusActions(model,onAction){
- const wrap=el("section",{class:"lifecycle-panel panel"},el("div",{},el("h2",{text:"Lifecycle actions"}),el("p",{class:"muted",text:"Update this group's operational status."})),el("div",{class:"actions"}));
- const actions=model.status==='Planned'?['activate','cancel']:model.status==='Active'?['complete','cancel']:[];
- for(const action of actions)wrap.lastChild.append(el("button",{type:"button",class:action==='cancel'?'danger':'secondary',text:action[0].toUpperCase()+action.slice(1),onclick:()=>onAction(action)}));
- return wrap;
+function summary(m, references) {
+  const course = references?.courses.data.find(x => x.id === m.courseId),
+        instructor = references?.instructors.data.find(x => x.id === m.primaryInstructorId);
+  return el(
+      "div", {},
+      el("header", {class: "entity-header"},
+         el("div", {}, el("h1", {text: m.name}),
+            el("div", {class: "entity-meta"}, badge(m.status), el("span", {
+                 class: "muted",
+                 text: `${date(m.plannedStartDate)} – ${date(m.plannedEndDate)}`
+               })))),
+      el("section", {class: "overview panel"}, el("h2", {text: "Overview"}),
+         el("div", {class: "overview-grid details"}, detail("Name", m.name),
+            detail(
+                "Course",
+                course ? `${course.name} (${course.code})` : "Course details unavailable"),
+            detail("Primary Instructor", instructor?.fullName || "Not assigned"),
+            detail("Planned dates", `${date(m.plannedStartDate)} – ${date(m.plannedEndDate)}`),
+            detail("Status", badge(m.status)))))
 }
-async function tabContent(model,tab,operational){if(tab==='enrollments')return enrollments(model,operational);if(tab==='sessions')return sessions(model,operational);return attendance(model)}
-async function enrollments(group,operational){const section=el("section"),render=async message=>{const next=await buildEnrollments(group,operational,section,render,message);section.replaceChildren(next)};await render();return section}
-async function buildEnrollments(group,operational,section,render,message){const content=el("div",{},el("h2",{text:"Enrollments"}));if(message)content.append(el("div",{class:"alert alert-success",role:"status",text:message}));const r=await api(`/api/training-groups/${group.id}/enrollments`);if(!r.ok){content.append(problemView(r.problem,r.status));return content}if(operational){const students=await api('/api/students?isActive=true');if(!students.ok)content.append(problemView(students.problem,students.status));else{const pick=field("studentId","Active Student",{tag:"select",items:[{value:"",label:"Select a student"},...students.data.map(x=>({value:x.id,label:`${x.studentNumber} — ${x.fullName}`}))]}),submit=el("button",{text:"Enroll Student"});const form=el("form",{class:"toolbar",onsubmit:async e=>{e.preventDefault();if(submit.disabled||!pick.input.value)return;submit.disabled=true;const x=await api(`/api/training-groups/${group.id}/enrollments`,{method:'POST',body:{studentId:pick.input.value}});if(x.ok)await render("Student enrolled.");else{content.prepend(problemView(x.problem,x.status));submit.disabled=false}}},pick.wrap,submit);content.append(form)}}if(!r.data.length)content.append(empty("No enrollment history."));else content.append(table("Group enrollment roster",[{label:"Student",render:x=>`${x.student.studentNumber} — ${x.student.fullName}`},{label:"Student state",render:x=>badge(x.student.isActive?'Active':'Inactive')},{label:"Enrollment",render:x=>badge(x.status)},{label:"Actions",render:x=>operational?enrollmentActions(x,content,render):"Read only"}],r.data));return content}
-function enrollmentActions(item,container,render){const wrap=el("div",{class:"actions"});const actions=item.status==='Active'?['complete','withdraw']:item.status==='Withdrawn'?['reactivate']:[];for(const action of actions){const button=el("button",{class:"secondary",text:action,onClick:async()=>{if(button.disabled||!await confirmAction({title:`${action} Enrollment`,message:`Confirm ${action} for ${item.student.fullName}?`,confirmText:action}))return;button.disabled=true;const r=await api(`/api/enrollments/${item.id}/${action}`,{method:'POST',body:{rowVersion:item.rowVersion}});if(r.ok)await render(action==='complete'?"Enrollment completed.":action==='withdraw'?"Enrollment withdrawn.":"Enrollment reactivated.");else{container.prepend(problemView(r.problem,r.status));button.disabled=false}}});wrap.append(button)}return wrap}
-async function sessions(group,operational){const section=el("section",{},el("h2",{text:"Training Sessions"}));if(operational)section.append(el("a",{class:"button",href:`#/groups/${group.id}/sessions/new`,text:"Schedule Session"}));const r=await api(`/api/training-groups/${group.id}/sessions`);if(!r.ok)section.append(problemView(r.problem,r.status));else section.append(r.data.length?table("Sessions — Africa/Casablanca time",[{label:"Date",render:x=>date(x.sessionDate)},{label:"Time",render:x=>`${time(x.startTime)}–${time(x.endTime)}`},{label:"Location",render:x=>text(x.location)},{label:"Status",render:x=>badge(x.status)},{label:"",render:x=>el("a",{href:`#/sessions/${x.id}`,text:"View"})}],r.data):empty("No sessions scheduled."));return section}
-async function attendance(group){const section=el("section",{},el("h2",{text:"Attendance history"})),r=await api(`/api/training-groups/${group.id}/attendance`);if(!r.ok)section.append(problemView(r.problem,r.status));else section.append(r.data.length?table("Recorded attendance",[{label:"Student",render:x=>`${x.student.studentNumber} — ${x.student.fullName}`},{label:"Session",render:x=>`${date(x.sessionDate)} ${time(x.startTime)}`},{label:"Attendance",render:x=>badge(x.attendance.status)},{label:"Note",render:x=>text(x.attendance.correctionNote)}],r.data):empty("No attendance has been recorded."));return section}
+function detail(label, value) {
+  return el(
+      "dl", {class: "detail"}, el("dt", {text: label}),
+      el("dd", {}, value?.nodeType ? value : text(value)))
+}
+function tabs(id, current) {
+  return el(
+      "nav", {class: "tabs", "aria-label": "Training Group sections"},
+      ['enrollments', 'sessions', 'attendance'].map(x => el("a", {
+                                                      href: `#/groups/${id}?tab=${x}`,
+                                                      "aria-current": current === x ? "page" : null,
+                                                      text: x[0].toUpperCase() + x.slice(1)
+                                                    })))
+}
+function statusActions(model, onAction) {
+  const wrap =
+      el("section", {class: "lifecycle-panel panel"},
+         el("div", {}, el("h2", {text: "Lifecycle actions"}),
+            el("p", {class: "muted", text: "Update this group's operational status."})),
+         el("div", {class: "actions"}));
+  const actions = model.status === 'Planned' ? ['activate', 'cancel'] :
+      model.status === 'Active'              ? ['complete', 'cancel'] :
+                                               [];
+  for (const action of actions)
+    wrap.lastChild.append(el("button", {
+      type: "button",
+      class: action === 'cancel' ? 'danger' : 'secondary',
+      text: action[0].toUpperCase() + action.slice(1),
+      onclick: () => onAction(action)
+    }));
+  return wrap;
+}
+async function tabContent(model, tab, operational) {
+  if (tab === 'enrollments')
+    return enrollments(model, operational);
+  if (tab === 'sessions')
+    return sessions(model, operational);
+  return attendance(model)
+}
+async function enrollments(group, operational) {
+  const section = el("section"), render = async message => {
+    const next = await buildEnrollments(group, operational, section, render, message);
+    section.replaceChildren(next)
+  };
+  await render();
+  return section
+}
+async function buildEnrollments(group, operational, section, render, message) {
+  const content = el("div", {}, el("h2", {text: "Enrollments"}));
+  if (message)
+    content.append(el("div", {class: "alert alert-success", role: "status", text: message}));
+  const r = await api(`/api/training-groups/${group.id}/enrollments`);
+  if (!r.ok) {
+    content.append(problemView(r.problem, r.status));
+    return content
+  }
+  if (operational) {
+    const students = await api('/api/students?isActive=true');
+    if (!students.ok)
+      content.append(problemView(students.problem, students.status));
+    else {
+      const pick = field("studentId", "Active Student", {
+        tag: "select",
+        items: [
+          {value: "", label: "Select a student"},
+          ...students.data.map(x => ({value: x.id, label: `${x.studentNumber} — ${x.fullName}`}))
+        ]
+      }),
+            submit = el("button", {text: "Enroll Student"});
+      const form =
+          el("form", {
+            class: "toolbar",
+            onsubmit: async e => {
+              e.preventDefault();
+              if (submit.disabled || !pick.input.value)
+                return;
+              submit.disabled = true;
+              const x = await api(
+                  `/api/training-groups/${group.id}/enrollments`,
+                  {method: 'POST', body: {studentId: pick.input.value}});
+              if (x.ok)
+                await render("Student enrolled.");
+              else {
+                content.prepend(problemView(x.problem, x.status));
+                submit.disabled = false
+              }
+            }
+          },
+             pick.wrap, submit);
+      content.append(form)
+    }
+  }
+  if (!r.data.length)
+    content.append(empty("No enrollment history."));
+  else
+    content.append(table(
+        "Group enrollment roster",
+        [
+          {label: "Student", render: x => `${x.student.studentNumber} — ${x.student.fullName}`},
+          {label: "Student state", render: x => badge(x.student.isActive ? 'Active' : 'Inactive')},
+          {label: "Enrollment", render: x => badge(x.status)}, {
+            label: "Actions",
+            render: x => operational ? enrollmentActions(x, content, render) : "Read only"
+          }
+        ],
+        r.data));
+  return content
+}
+function enrollmentActions(item, container, render) {
+  const wrap = el("div", {class: "actions"});
+  const actions = item.status === 'Active' ? ['complete', 'withdraw'] :
+      item.status === 'Withdrawn'          ? ['reactivate'] :
+                                             [];
+  for (const action of actions) {
+    const button = el("button", {
+      class: "secondary",
+      text: action,
+      onClick: async () => {
+        if (button.disabled || !await confirmAction({
+              title: `${action} Enrollment`,
+              message: `Confirm ${action} for ${item.student.fullName}?`,
+              confirmText: action
+            }))
+          return;
+        button.disabled = true;
+        const r = await api(
+            `/api/enrollments/${item.id}/${action}`,
+            {method: 'POST', body: {rowVersion: item.rowVersion}});
+        if (r.ok)
+          await render(
+              action === 'complete'     ? "Enrollment completed." :
+                  action === 'withdraw' ? "Enrollment withdrawn." :
+                                          "Enrollment reactivated.");
+        else {
+          container.prepend(problemView(r.problem, r.status));
+          button.disabled = false
+        }
+      }
+    });
+    wrap.append(button)
+  }
+  return wrap
+}
+async function sessions(group, operational) {
+  const section = el("section", {}, el("h2", {text: "Training Sessions"}));
+  if (operational)
+    section.append(
+        el("a",
+           {class: "button", href: `#/groups/${group.id}/sessions/new`, text: "Schedule Session"}));
+  const r = await api(`/api/training-groups/${group.id}/sessions`);
+  if (!r.ok)
+    section.append(problemView(r.problem, r.status));
+  else
+    section.append(
+        r.data.length ?
+            table(
+                "Sessions — Africa/Casablanca time",
+                [
+                  {label: "Date", render: x => date(x.sessionDate)},
+                  {label: "Time", render: x => `${time(x.startTime)}–${time(x.endTime)}`},
+                  {label: "Location", render: x => text(x.location)},
+                  {label: "Status", render: x => badge(x.status)},
+                  {label: "", render: x => el("a", {href: `#/sessions/${x.id}`, text: "View"})}
+                ],
+                r.data) :
+            empty("No sessions scheduled."));
+  return section
+}
+async function attendance(group) {
+  const section = el("section", {}, el("h2", {text: "Attendance history"})),
+        r = await api(`/api/training-groups/${group.id}/attendance`);
+  if (!r.ok)
+    section.append(problemView(r.problem, r.status));
+  else
+    section.append(
+        r.data.length ?
+            table(
+                "Recorded attendance",
+                [
+                  {
+                    label: "Student",
+                    render: x => `${x.student.studentNumber} — ${x.student.fullName}`
+                  },
+                  {label: "Session", render: x => `${date(x.sessionDate)} ${time(x.startTime)}`},
+                  {label: "Attendance", render: x => badge(x.attendance.status)},
+                  {label: "Note", render: x => text(x.attendance.correctionNote)}
+                ],
+                r.data) :
+            empty("No attendance has been recorded."));
+  return section
+}

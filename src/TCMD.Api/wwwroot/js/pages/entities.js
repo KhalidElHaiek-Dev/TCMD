@@ -1,53 +1,704 @@
-import{api}from"../api-client.js";import{el,field}from"../dom.js";import{loading,empty,badge,table,confirmAction,pageHeader}from"../components.js";import{applyRecordProblem,clearErrors,problemView}from"../problem-details.js";import{text,date}from"../formatters.js";
-const configs={
- students:{title:"Students",single:"Student",path:"students",search:"name, student number, phone, or email",fields:[f("fullName","Full name",200,true),f("phoneNumber","Phone number",50,true,"tel"),f("email","Email",320,false,"email")],columns:[c("Student number","studentNumber"),c("Name","fullName"),c("Phone","phoneNumber"),c("Email","email")]},
- instructors:{title:"Instructors",single:"Instructor",path:"instructors",search:"name, phone, or email",fields:[f("fullName","Full name",200,true),f("phoneNumber","Phone number",50,false,"tel"),f("email","Email",320,false,"email")],columns:[c("Name","fullName"),c("Phone","phoneNumber"),c("Email","email")]},
- courses:{title:"Courses",single:"Course",path:"courses",search:"code, name, or description",fields:[f("code","Code",50,true),f("name","Name",200,true),f("description","Description",2000,false,"text","textarea")],columns:[c("Code","code"),c("Name","name"),c("Description","description")]}
-};function f(name,label,maxlength,required,type="text",tag="input"){return{name,label,maxlength,required,type,tag}}function c(label,key){return{label,key}}
-const listStates=new Map();
-export async function entityList(kind){if(kind==="students")return studentList();const cfg=configs[kind],saved=listStates.get(kind)||{search:"",isActive:""},root=el("div",{},pageHeader({title:cfg.title,description:`Find and manage ${cfg.title.toLowerCase()}.`,actions:[el("a",{class:"button",href:`#/${kind}/new`,text:`Add ${cfg.single}`})]})),results=el("div");let controller;const search=field("search","Search",{placeholder:cfg.search,value:saved.search}),state=field("isActive","Status",{tag:"select",value:saved.isActive,items:[{value:"",label:"All statuses"},{value:"true",label:"Active"},{value:"false",label:"Inactive"}]});search.wrap.classList.add("toolbar-search");const clear=el("button",{class:"secondary",type:"button",text:"Clear filters"});const load=async()=>{controller?.abort();controller=new AbortController();saved.search=search.input.value.trim();saved.isActive=state.input.value;listStates.set(kind,saved);clear.hidden=!saved.search&&!saved.isActive;results.replaceChildren(loading());const params=new URLSearchParams();if(saved.search)params.set("search",saved.search);if(saved.isActive)params.set("isActive",saved.isActive);const response=await api(`/api/${cfg.path}?${params}`,{signal:controller.signal});if(response.aborted)return;if(!response.ok){results.replaceChildren(problemView(response.problem,response.status));return}const rows=response.data;const columns=kind==="courses"?[{label:"Course Name",render:x=>el("strong",{class:"primary-value",text:x.name})},{label:"Code",render:x=>el("span",{class:"student-number",text:x.code})}]:[{label:"Instructor Name",render:x=>el("strong",{class:"primary-value",text:x.fullName})},{label:"Phone",render:x=>text(x.phoneNumber)},{label:"Email",render:x=>text(x.email)}];results.replaceChildren(rows.length?table(cfg.title,[...columns,{label:"Status",render:x=>badge(x.isActive?"Active":"Inactive")},{label:"Actions",render:x=>el("a",{href:`#/${kind}/${x.id}`,text:"View"})}],rows):empty(`No ${cfg.title.toLowerCase()} found.`))};clear.addEventListener("click",()=>{search.input.value="";state.input.value="";load()});const form=el("form",{class:"toolbar student-filters",onsubmit:e=>{e.preventDefault();load()}},search.wrap,state.wrap,el("button",{text:"Search"}),clear);root.append(form,results);await load();return root}
-export async function entityDetail(kind,id){if(kind==="students")return studentDetail(id);const cfg=configs[kind],creating=id==="new",root=el("div"),message=el("div");let model=null,stale=false,busy=false;if(!creating){root.append(loading());const response=await api(`/api/${cfg.path}/${id}`);root.lastChild.remove();if(!response.ok){root.append(problemView(response.problem,response.status));return root}model=response.data}
- if(creating)root.append(pageHeader({title:`Add ${cfg.single}`,description:`Create a ${cfg.single.toLowerCase()} record.`}));else root.append(el("h1",{class:"sr-only",text:`${cfg.single} details`}),el("a",{class:"back-link",href:`#/${kind}`,text:`← Back to ${cfg.title}`}),entityHeader(kind,model));root.append(message);if(model)root.append(entityOverview(kind,model));
- const controls={},form=el("form",{class:"panel entity-form",novalidate:true},el("h2",{text:creating?`New ${cfg.single} details`:"Edit details"}));for(const spec of cfg.fields){const item=field(spec.name,spec.label,{value:model?.[spec.name]||"",maxlength:spec.maxlength,required:spec.required,type:spec.type,tag:spec.tag,help:spec.required?"Required":"Optional"});controls[spec.name]=item.input;form.append(item.wrap)}
- const actions=el("div",{class:"actions"}),save=el("button",{type:"submit",text:creating?`Create ${cfg.single}`:"Save changes"});actions.append(save);form.append(actions);let danger,editToggle;
- if(creating)actions.append(el("a",{class:"button secondary",href:`#/${kind}`,text:"Cancel"}));else{
-  form.id=`${kind}-edit-region`;form.hidden=true;
-  editToggle=el("button",{class:"secondary disclosure-control",type:"button","aria-expanded":"false","aria-controls":form.id,text:"Edit details"});
-  const closeEditor=()=>{form.hidden=true;editToggle.setAttribute("aria-expanded","false");editToggle.focus()};
-  editToggle.addEventListener("click",()=>{const opening=form.hidden;form.hidden=!opening;editToggle.setAttribute("aria-expanded",String(opening));if(opening)controls[cfg.fields[0].name].focus()});
-  actions.append(el("button",{class:"secondary",type:"button","aria-label":"Cancel editing",text:"Cancel",onclick:()=>{for(const spec of cfg.fields)controls[spec.name].value=model[spec.name]??"";clearErrors(form);message.replaceChildren();closeEditor()}}));
- }
- const syncControls=()=>form.querySelectorAll('input,textarea,button').forEach(control=>control.disabled=busy||stale||model?.isActive===false);const handle=async result=>{stale=await applyRecordProblem(form,message,result,`/api/${cfg.path}/${id}`,model?.rowVersion,()=>location.reload())};
- if(model?.isActive)danger=el("section",{class:"danger-zone"},el("div",{},el("h2",{text:`Deactivate ${cfg.single}`}),el("p",{text:"Deactivate this record while preserving its history."})),el("button",{class:"danger",type:"button",text:"Deactivate",onclick:async()=>{if(busy||stale||!await confirmAction({title:`Deactivate ${cfg.single}`,message:`Deactivate this ${cfg.single.toLowerCase()}? Historical information will be preserved.`,confirmText:"Deactivate",danger:true}))return;busy=true;syncControls();message.replaceChildren();try{const result=await api(`/api/${cfg.path}/${id}/deactivate`,{method:"POST",body:{rowVersion:model.rowVersion}});if(result.ok){model=result.data;refreshEntityPresentation(root,kind,model);danger.remove();message.append(el("div",{class:"alert alert-success",role:"status",text:`${cfg.single} deactivated.`}))}else await handle(result)}finally{busy=false;syncControls()}}}));
- form.addEventListener("submit",async e=>{e.preventDefault();if(stale||busy||!form.reportValidity())return;message.replaceChildren();busy=true;syncControls();const body=Object.fromEntries(cfg.fields.map(x=>[x.name,controls[x.name].value]));if(!creating)body.rowVersion=model.rowVersion;try{const result=await api(creating?`/api/${cfg.path}`:`/api/${cfg.path}/${id}`,{method:creating?"POST":"PUT",body});if(result.ok){model=result.data;clearErrors(form);if(creating)location.hash=`#/${kind}/${model.id}`;else{for(const spec of cfg.fields)controls[spec.name].value=model[spec.name]??"";refreshEntityPresentation(root,kind,model);message.append(el("div",{class:"alert alert-success",role:"status",text:"Changes saved."}));stale=false}}else await handle(result)}finally{busy=false;syncControls()}});
- if(creating)root.append(form);else{if(kind==="instructors")root.append(await relatedSection("Assigned groups",`/api/training-groups?primaryInstructorId=${id}`,"No assigned groups.",x=>`${x.name} — ${x.status}`,x=>`/groups/${x.id}`));if(kind==="courses")root.append(await relatedSection("Associated groups",`/api/training-groups?courseId=${id}`,"No associated groups.",x=>`${x.name} — ${x.status}`,x=>`/groups/${x.id}`));root.append(el("section",{class:"edit-disclosure"},editToggle,form));if(danger)root.append(danger)}syncControls();return root}
-function entityHeader(kind,model){const title=kind==="courses"?model.name:model.fullName;return el("header",{class:"entity-header"},el("div",{},el("h1",{text:title}),el("div",{class:"entity-meta"},kind==="courses"?el("span",{class:"student-number",text:model.code}):null,badge(model.isActive?"Active":"Inactive"))))}
-function entityOverview(kind,model){const values=kind==="courses"?[detail("Course Name",model.name),detail("Code",model.code),detail("Description",text(model.description)),detail("Status",badge(model.isActive?"Active":"Inactive"))]:[detail("Full Name",model.fullName),detail("Phone",text(model.phoneNumber)),detail("Email",text(model.email)),detail("Status",badge(model.isActive?"Active":"Inactive"))];return el("section",{class:"overview panel"},el("h2",{text:"Overview"}),el("div",{class:"overview-grid"},values))}
-function refreshEntityPresentation(root,kind,model){root.querySelector(".entity-header")?.replaceWith(entityHeader(kind,model));root.querySelector(".overview")?.replaceWith(entityOverview(kind,model))}
-async function studentList(){const saved=listStates.get("students")||{search:"",isActive:""},root=el("div",{},pageHeader({title:"Students",description:"Find and manage student records.",actions:[el("a",{class:"button",href:"#/students/new",text:"Add Student"})]})),results=el("div"),search=field("search","Search",{placeholder:configs.students.search,value:saved.search}),state=field("isActive","Status",{tag:"select",value:saved.isActive,items:[{value:"",label:"All statuses"},{value:"true",label:"Active"},{value:"false",label:"Inactive"}]});search.wrap.classList.add("toolbar-search");let controller;const clear=el("button",{class:"secondary",type:"button",text:"Clear filters"});const form=el("form",{class:"toolbar student-filters",onsubmit:e=>{e.preventDefault();load()}},search.wrap,state.wrap,el("button",{text:"Search"}),clear);clear.addEventListener("click",()=>{search.input.value="";state.input.value="";load()});const load=async()=>{controller?.abort();controller=new AbortController();saved.search=search.input.value.trim();saved.isActive=state.input.value;listStates.set("students",saved);clear.hidden=!saved.search&&!saved.isActive;results.replaceChildren(loading());const params=new URLSearchParams();if(saved.search)params.set("search",saved.search);if(saved.isActive)params.set("isActive",saved.isActive);const response=await api(`/api/students?${params}`,{signal:controller.signal});if(response.aborted)return;if(!response.ok){results.replaceChildren(problemView(response.problem,response.status));return}results.replaceChildren(response.data.length?table("Students",[{label:"Student Number",render:x=>el("span",{class:"student-number",text:x.studentNumber})},{label:"Name",render:x=>el("strong",{class:"primary-value",text:x.fullName})},{label:"Phone",render:x=>x.phoneNumber},{label:"Email",render:x=>text(x.email)},{label:"Status",render:x=>badge(x.isActive?"Active":"Inactive")},{label:"Actions",render:x=>el("a",{href:`#/students/${x.id}`,text:"View"})}],response.data):empty("No students found."))};root.append(form,results);await load();return root}
+import {api} from "../api-client.js";
+import {el, field} from "../dom.js";
+import {loading, empty, badge, table, confirmAction, pageHeader} from "../components.js";
+import {applyRecordProblem, clearErrors, problemView} from "../problem-details.js";
+import {text, date} from "../formatters.js";
+const configs = {
+  students: {
+    title: "Students",
+    single: "Student",
+    path: "students",
+    search: "name, student number, phone, or email",
+    fields: [
+      f("fullName", "Full name", 200, true), f("phoneNumber", "Phone number", 50, true, "tel"),
+      f("email", "Email", 320, false, "email")
+    ],
+    columns: [
+      c("Student number", "studentNumber"), c("Name", "fullName"), c("Phone", "phoneNumber"),
+      c("Email", "email")
+    ]
+  },
+  instructors: {
+    title: "Instructors",
+    single: "Instructor",
+    path: "instructors",
+    search: "name, phone, or email",
+    fields: [
+      f("fullName", "Full name", 200, true), f("phoneNumber", "Phone number", 50, false, "tel"),
+      f("email", "Email", 320, false, "email")
+    ],
+    columns: [c("Name", "fullName"), c("Phone", "phoneNumber"), c("Email", "email")]
+  },
+  courses: {
+    title: "Courses",
+    single: "Course",
+    path: "courses",
+    search: "code, name, or description",
+    fields: [
+      f("code", "Code", 50, true), f("name", "Name", 200, true),
+      f("description", "Description", 2000, false, "text", "textarea")
+    ],
+    columns: [c("Code", "code"), c("Name", "name"), c("Description", "description")]
+  }
+};
+function f(name, label, maxlength, required, type = "text", tag = "input") {
+  return {
+    name, label, maxlength, required, type, tag
+  }
+}
+function c(label, key) {
+  return {
+    label, key
+  }
+}
+const listStates = new Map();
+export async function entityList(kind) {
+  if (kind === "students")
+    return studentList();
+  const cfg = configs[kind], saved = listStates.get(kind) || {search: "", isActive: ""},
+        root =
+            el("div", {}, pageHeader({
+                 title: cfg.title,
+                 description: `Find and manage ${cfg.title.toLowerCase()}.`,
+                 actions:
+                     [el("a", {class: "button", href: `#/${kind}/new`, text: `Add ${cfg.single}`})]
+               })),
+        results = el("div");
+  let controller;
+  const search = field("search", "Search", {placeholder: cfg.search, value: saved.search}),
+        state = field("isActive", "Status", {
+          tag: "select",
+          value: saved.isActive,
+          items: [
+            {value: "", label: "All statuses"}, {value: "true", label: "Active"},
+            {value: "false", label: "Inactive"}
+          ]
+        });
+  search.wrap.classList.add("toolbar-search");
+  const clear = el("button", {class: "secondary", type: "button", text: "Clear filters"});
+  const load = async () => {
+    controller?.abort();
+    controller = new AbortController();
+    saved.search = search.input.value.trim();
+    saved.isActive = state.input.value;
+    listStates.set(kind, saved);
+    clear.hidden = !saved.search && !saved.isActive;
+    results.replaceChildren(loading());
+    const params = new URLSearchParams();
+    if (saved.search)
+      params.set("search", saved.search);
+    if (saved.isActive)
+      params.set("isActive", saved.isActive);
+    const response = await api(`/api/${cfg.path}?${params}`, {signal: controller.signal});
+    if (response.aborted)
+      return;
+    if (!response.ok) {
+      results.replaceChildren(problemView(response.problem, response.status));
+      return
+    }
+    const rows = response.data;
+    const columns = kind === "courses" ?
+        [
+          {label: "Course Name", render: x => el("strong", {class: "primary-value", text: x.name})},
+          {label: "Code", render: x => el("span", {class: "student-number", text: x.code})}
+        ] :
+        [
+          {
+            label: "Instructor Name",
+            render: x => el("strong", {class: "primary-value", text: x.fullName})
+          },
+          {label: "Phone", render: x => text(x.phoneNumber)},
+          {label: "Email", render: x => text(x.email)}
+        ];
+    results.replaceChildren(
+        rows.length ?
+            table(
+                cfg.title,
+                [
+                  ...columns,
+                  {label: "Status", render: x => badge(x.isActive ? "Active" : "Inactive")}, {
+                    label: "Actions",
+                    render: x => el("a", {href: `#/${kind}/${x.id}`, text: "View"})
+                  }
+                ],
+                rows) :
+            empty(`No ${cfg.title.toLowerCase()} found.`))
+  };
+  clear.addEventListener("click", () => {
+    search.input.value = "";
+    state.input.value = "";
+    load()
+  });
+  const form =
+      el("form", {
+        class: "toolbar student-filters",
+        onsubmit: e => {
+          e.preventDefault();
+          load()
+        }
+      },
+         search.wrap, state.wrap, el("button", {text: "Search"}), clear);
+  root.append(form, results);
+  await load();
+  return root
+}
+export async function entityDetail(kind, id) {
+  if (kind === "students")
+    return studentDetail(id);
+  const cfg = configs[kind], creating = id === "new", root = el("div"), message = el("div");
+  let model = null, stale = false, busy = false;
+  if (!creating) {
+    root.append(loading());
+    const response = await api(`/api/${cfg.path}/${id}`);
+    root.lastChild.remove();
+    if (!response.ok) {
+      root.append(problemView(response.problem, response.status));
+      return root
+    }
+    model = response.data
+  }
+  if (creating)
+    root.append(pageHeader(
+        {title: `Add ${cfg.single}`, description: `Create a ${cfg.single.toLowerCase()} record.`}));
+  else
+    root.append(
+        el("h1", {class: "sr-only", text: `${cfg.single} details`}),
+        el("a", {class: "back-link", href: `#/${kind}`, text: `← Back to ${cfg.title}`}),
+        entityHeader(kind, model));
+  root.append(message);
+  if (model)
+    root.append(entityOverview(kind, model));
+  const controls = {},
+        form =
+            el("form", {class: "panel entity-form", novalidate: true},
+               el("h2", {text: creating ? `New ${cfg.single} details` : "Edit details"}));
+  for (const spec of cfg.fields) {
+    const item = field(spec.name, spec.label, {
+      value: model?.[spec.name] || "",
+      maxlength: spec.maxlength,
+      required: spec.required,
+      type: spec.type,
+      tag: spec.tag,
+      help: spec.required ? "Required" : "Optional"
+    });
+    controls[spec.name] = item.input;
+    form.append(item.wrap)
+  }
+  const actions = el("div", {class: "actions"}),
+        save = el(
+            "button", {type: "submit", text: creating ? `Create ${cfg.single}` : "Save changes"});
+  actions.append(save);
+  form.append(actions);
+  let danger, editToggle;
+  if (creating)
+    actions.append(el("a", {class: "button secondary", href: `#/${kind}`, text: "Cancel"}));
+  else {
+    form.id = `${kind}-edit-region`;
+    form.hidden = true;
+    editToggle = el("button", {
+      class: "secondary disclosure-control",
+      type: "button",
+      "aria-expanded": "false",
+      "aria-controls": form.id,
+      text: "Edit details"
+    });
+    const closeEditor = () => {
+      form.hidden = true;
+      editToggle.setAttribute("aria-expanded", "false");
+      editToggle.focus()
+    };
+    editToggle.addEventListener("click", () => {
+      const opening = form.hidden;
+      form.hidden = !opening;
+      editToggle.setAttribute("aria-expanded", String(opening));
+      if (opening)
+        controls[cfg.fields[0].name].focus()
+    });
+    actions.append(el("button", {
+      class: "secondary",
+      type: "button",
+      "aria-label": "Cancel editing",
+      text: "Cancel",
+      onclick: () => {
+        for (const spec of cfg.fields)
+          controls[spec.name].value = model[spec.name] ?? "";
+        clearErrors(form);
+        message.replaceChildren();
+        closeEditor()
+      }
+    }));
+  }
+  const syncControls = () =>
+      form.querySelectorAll('input,textarea,button')
+          .forEach(control => control.disabled = busy || stale || model?.isActive === false);
+  const handle = async result => {
+    stale = await applyRecordProblem(
+        form, message, result, `/api/${cfg.path}/${id}`, model?.rowVersion, () => location.reload())
+  };
+  if (model?.isActive)
+    danger =
+        el("section", {class: "danger-zone"},
+           el("div", {}, el("h2", {text: `Deactivate ${cfg.single}`}),
+              el("p", {text: "Deactivate this record while preserving its history."})),
+           el("button", {
+             class: "danger",
+             type: "button",
+             text: "Deactivate",
+             onclick: async () => {
+               if (busy || stale || !await confirmAction({
+                     title: `Deactivate ${cfg.single}`,
+                     message: `Deactivate this ${
+                         cfg.single.toLowerCase()}? Historical information will be preserved.`,
+                     confirmText: "Deactivate",
+                     danger: true
+                   }))
+                 return;
+               busy = true;
+               syncControls();
+               message.replaceChildren();
+               try {
+                 const result = await api(
+                     `/api/${cfg.path}/${id}/deactivate`,
+                     {method: "POST", body: {rowVersion: model.rowVersion}});
+                 if (result.ok) {
+                   model = result.data;
+                   refreshEntityPresentation(root, kind, model);
+                   danger.remove();
+                   message.append(el("div", {
+                     class: "alert alert-success",
+                     role: "status",
+                     text: `${cfg.single} deactivated.`
+                   }))
+                 } else
+                   await handle(result)
+               } finally {
+                 busy = false;
+                 syncControls()
+               }
+             }
+           }));
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (stale || busy || !form.reportValidity())
+      return;
+    message.replaceChildren();
+    busy = true;
+    syncControls();
+    const body = Object.fromEntries(cfg.fields.map(x => [x.name, controls[x.name].value]));
+    if (!creating)
+      body.rowVersion = model.rowVersion;
+    try {
+      const result = await api(
+          creating ? `/api/${cfg.path}` : `/api/${cfg.path}/${id}`,
+          {method: creating ? "POST" : "PUT", body});
+      if (result.ok) {
+        model = result.data;
+        clearErrors(form);
+        if (creating)
+          location.hash = `#/${kind}/${model.id}`;
+        else {
+          for (const spec of cfg.fields)
+            controls[spec.name].value = model[spec.name] ?? "";
+          refreshEntityPresentation(root, kind, model);
+          message.append(
+              el("div", {class: "alert alert-success", role: "status", text: "Changes saved."}));
+          stale = false
+        }
+      } else
+        await handle(result)
+    } finally {
+      busy = false;
+      syncControls()
+    }
+  });
+  if (creating)
+    root.append(form);
+  else {
+    if (kind === "instructors")
+      root.append(await relatedSection(
+          "Assigned groups", `/api/training-groups?primaryInstructorId=${id}`,
+          "No assigned groups.", x => `${x.name} — ${x.status}`, x => `/groups/${x.id}`));
+    if (kind === "courses")
+      root.append(await relatedSection(
+          "Associated groups", `/api/training-groups?courseId=${id}`, "No associated groups.",
+          x => `${x.name} — ${x.status}`, x => `/groups/${x.id}`));
+    root.append(el("section", {class: "edit-disclosure"}, editToggle, form));
+    if (danger)
+      root.append(danger)
+  }
+  syncControls();
+  return root
+}
+function entityHeader(kind, model) {
+  const title = kind === "courses" ? model.name : model.fullName;
+  return el(
+      "header", {class: "entity-header"},
+      el("div", {}, el("h1", {text: title}),
+         el("div", {class: "entity-meta"},
+            kind === "courses" ? el("span", {class: "student-number", text: model.code}) : null,
+            badge(model.isActive ? "Active" : "Inactive"))))
+}
+function entityOverview(kind, model) {
+  const values = kind === "courses" ?
+      [
+        detail("Course Name", model.name), detail("Code", model.code),
+        detail("Description", text(model.description)),
+        detail("Status", badge(model.isActive ? "Active" : "Inactive"))
+      ] :
+      [
+        detail("Full Name", model.fullName), detail("Phone", text(model.phoneNumber)),
+        detail("Email", text(model.email)),
+        detail("Status", badge(model.isActive ? "Active" : "Inactive"))
+      ];
+  return el(
+      "section", {class: "overview panel"}, el("h2", {text: "Overview"}),
+      el("div", {class: "overview-grid"}, values))
+}
+function refreshEntityPresentation(root, kind, model) {
+  root.querySelector(".entity-header")?.replaceWith(entityHeader(kind, model));
+  root.querySelector(".overview")?.replaceWith(entityOverview(kind, model))
+}
+async function studentList() {
+  const saved = listStates.get("students") || {search: "", isActive: ""},
+        root =
+            el("div", {}, pageHeader({
+                 title: "Students",
+                 description: "Find and manage student records.",
+                 actions: [el("a", {class: "button", href: "#/students/new", text: "Add Student"})]
+               })),
+        results = el("div"),
+        search =
+            field("search", "Search", {placeholder: configs.students.search, value: saved.search}),
+        state = field("isActive", "Status", {
+          tag: "select",
+          value: saved.isActive,
+          items: [
+            {value: "", label: "All statuses"}, {value: "true", label: "Active"},
+            {value: "false", label: "Inactive"}
+          ]
+        });
+  search.wrap.classList.add("toolbar-search");
+  let controller;
+  const clear = el("button", {class: "secondary", type: "button", text: "Clear filters"});
+  const form =
+      el("form", {
+        class: "toolbar student-filters",
+        onsubmit: e => {
+          e.preventDefault();
+          load()
+        }
+      },
+         search.wrap, state.wrap, el("button", {text: "Search"}), clear);
+  clear.addEventListener("click", () => {
+    search.input.value = "";
+    state.input.value = "";
+    load()
+  });
+  const load = async () => {
+    controller?.abort();
+    controller = new AbortController();
+    saved.search = search.input.value.trim();
+    saved.isActive = state.input.value;
+    listStates.set("students", saved);
+    clear.hidden = !saved.search && !saved.isActive;
+    results.replaceChildren(loading());
+    const params = new URLSearchParams();
+    if (saved.search)
+      params.set("search", saved.search);
+    if (saved.isActive)
+      params.set("isActive", saved.isActive);
+    const response = await api(`/api/students?${params}`, {signal: controller.signal});
+    if (response.aborted)
+      return;
+    if (!response.ok) {
+      results.replaceChildren(problemView(response.problem, response.status));
+      return
+    }
+    results.replaceChildren(
+        response.data.length ?
+            table(
+                "Students",
+                [
+                  {
+                    label: "Student Number",
+                    render: x => el("span", {class: "student-number", text: x.studentNumber})
+                  },
+                  {
+                    label: "Name",
+                    render: x => el("strong", {class: "primary-value", text: x.fullName})
+                  },
+                  {label: "Phone", render: x => x.phoneNumber},
+                  {label: "Email", render: x => text(x.email)},
+                  {label: "Status", render: x => badge(x.isActive ? "Active" : "Inactive")}, {
+                    label: "Actions",
+                    render: x => el("a", {href: `#/students/${x.id}`, text: "View"})
+                  }
+                ],
+                response.data) :
+            empty("No students found."))
+  };
+  root.append(form, results);
+  await load();
+  return root
+}
 
-async function studentDetail(id){const creating=id==="new",root=el("div"),message=el("div");let model=null,stale=false,busy=false;if(!creating){root.append(loading());const response=await api(`/api/students/${id}`);root.lastChild.remove();if(!response.ok){root.append(problemView(response.problem,response.status));return root}model=response.data}
- if(creating)root.append(pageHeader({title:"Add Student",description:"Create a student record."}));else root.append(el("a",{class:"back-link",href:"#/students",text:"← Back to Students"}),studentHeader(model));root.append(message);
- if(model)root.append(studentOverview(model));
- const controls={},form=el("form",{class:"panel entity-form",novalidate:true},el("h2",{text:creating?"Student details":"Edit details"}));for(const spec of configs.students.fields){const item=field(spec.name,spec.label,{value:model?.[spec.name]||"",maxlength:spec.maxlength,required:spec.required,type:spec.type,tag:spec.tag,help:spec.required?"Required":"Optional"});controls[spec.name]=item.input;form.append(item.wrap)}
- const actions=el("div",{class:"actions"}),save=el("button",{type:"submit",text:creating?"Create Student":"Save changes"});actions.append(save);form.append(actions);
- let editToggle;
- if(creating){actions.append(el("a",{class:"button secondary",href:"#/students",text:"Cancel"}));root.append(form)}else{
-  form.id="student-edit-region";form.hidden=true;
-  editToggle=el("button",{class:"secondary disclosure-control",type:"button","aria-expanded":"false","aria-controls":form.id,text:"Edit details"});
-  const closeEditor=()=>{form.hidden=true;editToggle.setAttribute("aria-expanded","false");editToggle.focus()};
-  editToggle.addEventListener("click",()=>{const opening=form.hidden;form.hidden=!opening;editToggle.setAttribute("aria-expanded",String(opening));if(opening)controls.fullName.focus()});
-  actions.append(el("button",{class:"secondary",type:"button","aria-label":"Cancel editing",text:"Cancel",onclick:()=>{for(const spec of configs.students.fields)controls[spec.name].value=model[spec.name]??"";clearErrors(form);message.replaceChildren();closeEditor()}}));
- }
- const sync=()=>form.querySelectorAll("input,textarea,button").forEach(x=>x.disabled=busy||stale||model?.isActive===false);const handle=async result=>{stale=await applyRecordProblem(form,message,result,`/api/students/${id}`,model?.rowVersion,()=>location.reload())};
- form.addEventListener("submit",async e=>{e.preventDefault();if(stale||busy||!form.reportValidity())return;message.replaceChildren();busy=true;sync();const body=Object.fromEntries(configs.students.fields.map(x=>[x.name,controls[x.name].value]));if(!creating)body.rowVersion=model.rowVersion;try{const result=await api(creating?"/api/students":`/api/students/${id}`,{method:creating?"POST":"PUT",body});if(result.ok){model=result.data;clearErrors(form);if(creating)location.hash=`#/students/${model.id}`;else{for(const spec of configs.students.fields)controls[spec.name].value=model[spec.name]??"";refreshStudentPresentation(root,model);message.append(el("div",{class:"alert alert-success",role:"status",text:"Changes saved."}));stale=false}}else await handle(result)}finally{busy=false;sync()}});
- let danger;if(model?.isActive)danger=el("section",{class:"danger-zone"},el("div",{},el("h2",{text:"Deactivate Student"}),el("p",{text:"Deactivate this record while preserving its history."})),el("button",{class:"danger",type:"button",text:"Deactivate",onclick:async()=>{if(busy||stale||!await confirmAction({title:"Deactivate Student",message:"Deactivate this student? Historical information will be preserved.",confirmText:"Deactivate",danger:true}))return;busy=true;sync();message.replaceChildren();try{const result=await api(`/api/students/${id}/deactivate`,{method:"POST",body:{rowVersion:model.rowVersion}});if(result.ok){model=result.data;refreshStudentPresentation(root,model);message.append(el("div",{class:"alert alert-success",role:"status",text:"Student deactivated."}));danger.remove()}else await handle(result)}finally{busy=false;sync()}}}));
- if(model){const related=el("div",{class:"related-sections"},loading());root.append(related);const [enrollments,attendance]=await Promise.all([studentEnrollments(id),studentAttendance(id)]);related.replaceChildren(enrollments,attendance);root.append(el("section",{class:"edit-disclosure"},editToggle,form));if(danger)root.append(danger)}sync();return root}
-function studentHeader(model){return el("header",{class:"entity-header"},el("div",{},el("h1",{text:model.fullName}),el("div",{class:"entity-meta"},el("span",{class:"student-number",text:model.studentNumber}),badge(model.isActive?"Active":"Inactive"))))}
-function studentOverview(model){return el("section",{class:"overview panel","aria-labelledby":"student-overview-title"},el("h2",{id:"student-overview-title",text:"Overview"}),el("div",{class:"overview-grid"},detail("Full Name",model.fullName),detail("Student Number",model.studentNumber),detail("Phone",model.phoneNumber),detail("Email",text(model.email)),detail("Status",badge(model.isActive?"Active":"Inactive"))))}
-function refreshStudentPresentation(root,model){root.querySelector(".entity-header")?.replaceWith(studentHeader(model));root.querySelector(".overview")?.replaceWith(studentOverview(model))}
-async function studentEnrollments(id){const section=el("section",{},el("h2",{text:"Enrollment history"})),result=await api(`/api/students/${id}/enrollments`);if(!result.ok)section.append(problemView(result.problem,result.status));else section.append(result.data.length?table("Student enrollments",[{label:"Training Group",render:x=>el("a",{href:`#/groups/${x.trainingGroupId}`,text:x.trainingGroup.name})},{label:"Status",render:x=>badge(x.status)}],result.data):empty("No enrollment history."));return section}
-async function studentAttendance(id){const section=el("section",{},el("h2",{text:"Attendance history"})),result=await api(`/api/students/${id}/attendance`);if(!result.ok)section.append(problemView(result.problem,result.status));else section.append(result.data.length?table("Student attendance",[{label:"Training Group",render:x=>x.session.trainingGroupName},{label:"Session date",render:x=>date(x.session.sessionDate)},{label:"Attendance",render:x=>badge(x.attendance.status)},{label:"Actions",render:x=>el("a",{href:`#/sessions/${x.session.id}`,text:"View session"})}],result.data):empty("No attendance history."));return section}
+async function studentDetail(id) {
+  const creating = id === "new", root = el("div"), message = el("div");
+  let model = null, stale = false, busy = false;
+  if (!creating) {
+    root.append(loading());
+    const response = await api(`/api/students/${id}`);
+    root.lastChild.remove();
+    if (!response.ok) {
+      root.append(problemView(response.problem, response.status));
+      return root
+    }
+    model = response.data
+  }
+  if (creating)
+    root.append(pageHeader({title: "Add Student", description: "Create a student record."}));
+  else
+    root.append(
+        el("a", {class: "back-link", href: "#/students", text: "← Back to Students"}),
+        studentHeader(model));
+  root.append(message);
+  if (model)
+    root.append(studentOverview(model));
+  const controls = {},
+        form =
+            el("form", {class: "panel entity-form", novalidate: true},
+               el("h2", {text: creating ? "Student details" : "Edit details"}));
+  for (const spec of configs.students.fields) {
+    const item = field(spec.name, spec.label, {
+      value: model?.[spec.name] || "",
+      maxlength: spec.maxlength,
+      required: spec.required,
+      type: spec.type,
+      tag: spec.tag,
+      help: spec.required ? "Required" : "Optional"
+    });
+    controls[spec.name] = item.input;
+    form.append(item.wrap)
+  }
+  const actions = el("div", {class: "actions"}),
+        save = el("button", {type: "submit", text: creating ? "Create Student" : "Save changes"});
+  actions.append(save);
+  form.append(actions);
+  let editToggle;
+  if (creating) {
+    actions.append(el("a", {class: "button secondary", href: "#/students", text: "Cancel"}));
+    root.append(form)
+  } else {
+    form.id = "student-edit-region";
+    form.hidden = true;
+    editToggle = el("button", {
+      class: "secondary disclosure-control",
+      type: "button",
+      "aria-expanded": "false",
+      "aria-controls": form.id,
+      text: "Edit details"
+    });
+    const closeEditor = () => {
+      form.hidden = true;
+      editToggle.setAttribute("aria-expanded", "false");
+      editToggle.focus()
+    };
+    editToggle.addEventListener("click", () => {
+      const opening = form.hidden;
+      form.hidden = !opening;
+      editToggle.setAttribute("aria-expanded", String(opening));
+      if (opening)
+        controls.fullName.focus()
+    });
+    actions.append(el("button", {
+      class: "secondary",
+      type: "button",
+      "aria-label": "Cancel editing",
+      text: "Cancel",
+      onclick: () => {
+        for (const spec of configs.students.fields)
+          controls[spec.name].value = model[spec.name] ?? "";
+        clearErrors(form);
+        message.replaceChildren();
+        closeEditor()
+      }
+    }));
+  }
+  const sync = () => form.querySelectorAll("input,textarea,button")
+                         .forEach(x => x.disabled = busy || stale || model?.isActive === false);
+  const handle = async result => {
+    stale = await applyRecordProblem(
+        form, message, result, `/api/students/${id}`, model?.rowVersion, () => location.reload())
+  };
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (stale || busy || !form.reportValidity())
+      return;
+    message.replaceChildren();
+    busy = true;
+    sync();
+    const body =
+        Object.fromEntries(configs.students.fields.map(x => [x.name, controls[x.name].value]));
+    if (!creating)
+      body.rowVersion = model.rowVersion;
+    try {
+      const result = await api(
+          creating ? "/api/students" : `/api/students/${id}`,
+          {method: creating ? "POST" : "PUT", body});
+      if (result.ok) {
+        model = result.data;
+        clearErrors(form);
+        if (creating)
+          location.hash = `#/students/${model.id}`;
+        else {
+          for (const spec of configs.students.fields)
+            controls[spec.name].value = model[spec.name] ?? "";
+          refreshStudentPresentation(root, model);
+          message.append(
+              el("div", {class: "alert alert-success", role: "status", text: "Changes saved."}));
+          stale = false
+        }
+      } else
+        await handle(result)
+    } finally {
+      busy = false;
+      sync()
+    }
+  });
+  let danger;
+  if (model?.isActive)
+    danger = el(
+        "section", {class: "danger-zone"},
+        el("div", {}, el("h2", {text: "Deactivate Student"}),
+           el("p", {text: "Deactivate this record while preserving its history."})),
+        el("button", {
+          class: "danger",
+          type: "button",
+          text: "Deactivate",
+          onclick: async () => {
+            if (busy || stale || !await confirmAction({
+                  title: "Deactivate Student",
+                  message: "Deactivate this student? Historical information will be preserved.",
+                  confirmText: "Deactivate",
+                  danger: true
+                }))
+              return;
+            busy = true;
+            sync();
+            message.replaceChildren();
+            try {
+              const result = await api(
+                  `/api/students/${id}/deactivate`,
+                  {method: "POST", body: {rowVersion: model.rowVersion}});
+              if (result.ok) {
+                model = result.data;
+                refreshStudentPresentation(root, model);
+                message.append(el(
+                    "div",
+                    {class: "alert alert-success", role: "status", text: "Student deactivated."}));
+                danger.remove()
+              } else
+                await handle(result)
+            } finally {
+              busy = false;
+              sync()
+            }
+          }
+        }));
+  if (model) {
+    const related = el("div", {class: "related-sections"}, loading());
+    root.append(related);
+    const [enrollments, attendance] =
+        await Promise.all([studentEnrollments(id), studentAttendance(id)]);
+    related.replaceChildren(enrollments, attendance);
+    root.append(el("section", {class: "edit-disclosure"}, editToggle, form));
+    if (danger)
+      root.append(danger)
+  }
+  sync();
+  return root
+}
+function studentHeader(model) {
+  return el(
+      "header", {class: "entity-header"},
+      el("div", {}, el("h1", {text: model.fullName}),
+         el("div", {class: "entity-meta"},
+            el("span", {class: "student-number", text: model.studentNumber}),
+            badge(model.isActive ? "Active" : "Inactive"))))
+}
+function studentOverview(model) {
+  return el(
+      "section", {class: "overview panel", "aria-labelledby": "student-overview-title"},
+      el("h2", {id: "student-overview-title", text: "Overview"}),
+      el("div", {class: "overview-grid"}, detail("Full Name", model.fullName),
+         detail("Student Number", model.studentNumber), detail("Phone", model.phoneNumber),
+         detail("Email", text(model.email)),
+         detail("Status", badge(model.isActive ? "Active" : "Inactive"))))
+}
+function refreshStudentPresentation(root, model) {
+  root.querySelector(".entity-header")?.replaceWith(studentHeader(model));
+  root.querySelector(".overview")?.replaceWith(studentOverview(model))
+}
+async function studentEnrollments(id) {
+  const section = el("section", {}, el("h2", {text: "Enrollment history"})),
+        result = await api(`/api/students/${id}/enrollments`);
+  if (!result.ok)
+    section.append(problemView(result.problem, result.status));
+  else
+    section.append(
+        result.data.length ?
+            table(
+                "Student enrollments",
+                [
+                  {
+                    label: "Training Group",
+                    render: x =>
+                        el("a", {href: `#/groups/${x.trainingGroupId}`, text: x.trainingGroup.name})
+                  },
+                  {label: "Status", render: x => badge(x.status)}
+                ],
+                result.data) :
+            empty("No enrollment history."));
+  return section
+}
+async function studentAttendance(id) {
+  const section = el("section", {}, el("h2", {text: "Attendance history"})),
+        result = await api(`/api/students/${id}/attendance`);
+  if (!result.ok)
+    section.append(problemView(result.problem, result.status));
+  else
+    section.append(
+        result.data.length ?
+            table(
+                "Student attendance",
+                [
+                  {label: "Training Group", render: x => x.session.trainingGroupName},
+                  {label: "Session date", render: x => date(x.session.sessionDate)},
+                  {label: "Attendance", render: x => badge(x.attendance.status)}, {
+                    label: "Actions",
+                    render: x => el("a", {href: `#/sessions/${x.session.id}`, text: "View session"})
+                  }
+                ],
+                result.data) :
+            empty("No attendance history."));
+  return section
+}
 
-async function relatedSection(title,url,none,label,link){const section=el("section",{},el("h2",{text:title}));const result=await api(url);if(!result.ok)section.append(problemView(result.problem,result.status));else if(!result.data.length)section.append(empty(none));else section.append(el("ul",{},result.data.map(x=>el("li",{},el("a",{href:`#${link(x)}`,text:label(x)})))));return section}
-function detail(label,value){return el("dl",{class:"detail"},el("dt",{text:label}),el("dd",{},value?.nodeType?value:text(value)))}
+async function relatedSection(title, url, none, label, link) {
+  const section = el("section", {}, el("h2", {text: title}));
+  const result = await api(url);
+  if (!result.ok)
+    section.append(problemView(result.problem, result.status));
+  else if (!result.data.length)
+    section.append(empty(none));
+  else
+    section.append(
+        el("ul", {},
+           result.data.map(x => el("li", {}, el("a", {href: `#${link(x)}`, text: label(x)})))));
+  return section
+}
+function detail(label, value) {
+  return el(
+      "dl", {class: "detail"}, el("dt", {text: label}),
+      el("dd", {}, value?.nodeType ? value : text(value)))
+}

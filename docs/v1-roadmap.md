@@ -1,264 +1,89 @@
-# Version 1 Roadmap
+# TCMD V1 — Implementation Status
 
-This roadmap defines a safe implementation order. It does not promise dates or effort estimates. A phase is complete only when its agreed behavior is implemented, tested, and documented.
+## V1 objective
 
-## Product-definition status
+TCMD V1 is a completed internal web application for one training center. It gives authorized staff a single place to manage students, instructors, courses, training groups, enrollments, sessions, attendance, and staff access while preserving history and enforcing role-sensitive rules on the server.
 
-The blocking V1 product decisions are confirmed. The approved rules are recorded in the product scope, roles, workflows, and domain model documents.
+## Architecture
 
-The implementation sequence begins with Milestone 1 below. Later milestones remain ordered by business dependency rather than promised dates.
+The solution uses four projects with a clear dependency direction:
 
-## Milestone 1: Executable and testable API foundation
+```text
+TCMD.Api ──> TCMD.Application ──> TCMD.Domain
+     └────> TCMD.Infrastructure ──> TCMD.Application + TCMD.Domain
+```
 
-Goal: create the smallest dependable engineering base before implementing a business module.
+- `TCMD.Api` is the executable host and owns HTTP endpoints, authentication, authorization, middleware, configuration, and the same-origin browser client.
+- `TCMD.Application` owns use cases, DTOs, validation orchestration, and persistence abstractions. It remains independent of HTTP and EF Core.
+- `TCMD.Domain` owns entities, invariants, lifecycle rules, and status transitions. It has no project dependencies.
+- `TCMD.Infrastructure` owns EF Core, SQL Server persistence, ASP.NET Core Identity storage, migrations, and implementations of Application abstractions.
 
-Deliverables:
+## Completed capabilities
 
-- a .NET 10 solution using the proposed three-project structure;
-- an ASP.NET Core Web API project;
-- a small domain project;
-- an integration-test project;
-- nullable reference types enabled;
-- environment-based configuration with no committed secrets;
-- Entity Framework Core 10 configured for SQL Server;
-- an empty initial database migration;
-- consistent `ProblemDetails` error responses;
-- a health endpoint that checks the API and database;
-- generated OpenAPI documentation;
-- an integration-test host using `WebApplicationFactory`;
-- a dedicated integration-test database configuration;
-- one integration test proving API and SQL Server connectivity; and
-- documented restore, migration, run, and test commands.
+### Identity and access
 
-Milestone 1 intentionally contains no student, instructor, course, group, enrollment, session, attendance, or authentication feature endpoints.
+- ASP.NET Core Identity cookie authentication with sign-in, sign-out, lockout, and account deactivation.
+- Administrator, Staff, and Instructor roles with server-enforced authorization.
+- Administrator-only staff-account, role, password, active-status, and Instructor-link management.
+- Optional one-to-one links between Instructor accounts and Instructor records.
+- Instructor access restricted to groups currently assigned to the linked Instructor and the related sessions, compact rosters, and attendance.
+- Antiforgery validation for state-changing API requests and safe `ProblemDetails` error responses.
 
-Acceptance criteria:
+### Core records
 
-1. A new developer can follow the README and start the API.
-2. The solution builds with zero errors.
-3. All projects target .NET 10 and enable nullable reference types.
-4. Configuration contains no committed credentials or connection-string secrets.
-5. EF Core migrations can create or update the dedicated development database.
-6. `GET /health` reports API health and SQL Server connectivity.
-7. API errors use a consistent `ProblemDetails` representation.
-8. OpenAPI document generation succeeds.
-9. Integration tests start the real API pipeline through `WebApplicationFactory`.
-10. At least one integration test verifies API and SQL Server connectivity.
-11. Tests use a dedicated test database and never modify the development database.
-12. A clean checkout has documented restore, migration, run, and test commands.
-13. No business or postponed feature is implemented prematurely.
+- Student, Instructor, and Course creation, search, retrieval, update, and history-preserving deactivation.
+- Generated unique student numbers and canonical unique course codes.
+- Database constraints and server-side validation for important uniqueness and relationship rules.
 
-Approved technical baseline:
+### Training operations
 
-- .NET 10 LTS, ASP.NET Core Web API, and C#;
-- Entity Framework Core 10 with the SQL Server provider;
-- ASP.NET Core Identity with secure HTTP-only cookie authentication for later authentication work;
-- xUnit and `WebApplicationFactory` for integration tests; and
-- HTML, CSS, JavaScript, and Fetch served from the API for the later browser interface.
+- Training Group creation, assignment, updates, and lifecycle transitions.
+- Enrollment creation, completion, withdrawal, and eligible reactivation without losing history.
+- Session scheduling, updates, completion, cancellation, and group-date validation.
 
-## Milestone 2: Student registration and retrieval
+### Attendance
 
-Goal: deliver the first operational vertical slice on the API foundation.
+- Attendance recording and rowversion-protected correction for eligible enrollments and sessions.
+- Present, Absent, Late, and Excused statuses, with optional correction notes and staff attribution.
+- Attendance views by session, student, and Training Group.
 
-Delivered behavior:
+### Reliability and concurrency
 
-- student registration with required basic details;
-- unique, generated student numbers;
-- student retrieval by identifier; and
-- domain and SQL-backed integration tests.
+- SQL Server persistence through Entity Framework Core migrations.
+- SQL Server `rowversion` optimistic concurrency with explicit conflict responses and client recovery behavior.
+- Consistent validation, authorization, lifecycle checks, and safe API errors.
+- Dedicated database-name guards for demo seeding and database-backed tests.
 
-## Milestone 3A: Authentication and authorization foundation
+### Browser interface
 
-Goal: protect the application before expanding operational features.
+- Same-origin responsive interface built with semantic HTML, project-owned CSS, native JavaScript modules, and the Fetch API.
+- Role-aware navigation with authorization still enforced by the server.
+- Loading, empty, validation, error, authentication-expiry, and concurrency-conflict states.
+- Keyboard, focus, responsive-layout, and accessibility improvements covered by browser tests.
 
-Delivered behavior:
+### Testing and development tooling
 
-- secure credential storage;
-- sign-in and sign-out behavior;
-- Administrator, Staff, and Instructor authorization rules;
-- account deactivation; and
-- integration tests for authentication and forbidden actions.
+- Domain tests for entity invariants and lifecycle transitions.
+- SQL Server-backed integration tests using `WebApplicationFactory` for HTTP, authorization, antiforgery, persistence, and concurrency behavior.
+- Playwright browser tests for complete workflows, role-sensitive behavior, accessibility, responsive presentation, state preservation, and concurrency feedback.
+- Explicit development-only demo-data seeding restricted to the `TCMD.Demo` database and an empty data set.
 
-## Milestone 3B: Staff-account administration
+## V1 boundaries
 
-Goal: allow administrators to manage internal access safely.
+TCMD V1 is intentionally limited to one internal training center. The following remain outside its scope:
 
-Delivered behavior:
+- student accounts or a student portal;
+- self-service password recovery and outbound recovery email;
+- payments, invoices, fees, subscriptions, and other financial management;
+- learning-management content, course videos, certificates, chat, and notifications;
+- multiple training centers, SaaS or marketplace features, and mobile applications;
+- multiple instructors per group, structured room management, recurring schedules, and schedule-conflict detection;
+- advanced analytics, custom report building, and file exports unless separately approved;
+- full attendance correction-history auditing; and
+- microservices, CQRS, message brokers, Redis, Docker, and AI features inside TCMD.
 
-- Administrator-only staff-account creation and retrieval;
-- role, active-status, and password administration;
-- protection for the last active Administrator; and
-- session invalidation after security-sensitive account changes.
+Hosting, production backup ownership, and release approval depend on the environment in which the application is deployed and are not defined by this reference implementation.
 
-Optional links between instructor records and staff accounts remain future work.
+## Current status
 
-## Milestone 4: Standalone Student management
-
-Goal: complete the standalone student workflows needed by later enrollment work.
-
-Delivered behavior:
-
-- student list and search;
-- active/inactive filtering;
-- basic-detail updates;
-- deactivation without deleting history;
-- optimistic-concurrency protection; and
-- validation, authorization, domain, and integration tests.
-
-## Milestone 5: Standalone Instructor management
-
-Goal: manage instructor records needed by later group assignment.
-
-Delivered behavior:
-
-- instructor creation, retrieval, list, and search;
-- active/inactive filtering;
-- basic-detail updates;
-- deactivation without deleting history;
-- optimistic-concurrency protection; and
-- validation, authorization, domain, and integration tests.
-
-## Milestone 6: Standalone Course management
-
-Goal: manage reusable course records needed by later training groups.
-
-Delivered behavior:
-
-- course creation, retrieval, list, and search;
-- active/inactive filtering;
-- course-detail updates;
-- canonical, unique course codes across active and inactive records;
-- deactivation without deleting history;
-- optimistic-concurrency protection; and
-- validation, authorization, domain, and integration tests.
-
-## Milestone 7: Standalone Training Group management
-
-Goal: organize planned deliveries of courses before adding enrollment workflows.
-
-Delivered behavior:
-
-- training-group creation, retrieval, list, and update;
-- active course and optional primary-instructor assignment while Planned;
-- group status and planned-date rules;
-- course and instructor group views; and
-- validation, authorization, concurrency, and integration tests.
-
-Completion criteria:
-
-- staff can create and maintain a valid group for an active course;
-- group dates, status, and instructor requirements follow the approved rules; and
-- inactive reference records cannot be selected for new assignments.
-
-## Milestone 8: Enrollment management
-
-Goal: enroll eligible students into training groups while preserving membership history.
-
-Delivered behavior:
-
-- enrollment creation and status management;
-- student and group membership views;
-- withdrawn-enrollment reactivation; and
-- integration tests for inactive records, status rules, and duplicate enrollment.
-
-Completion criteria:
-
-- staff can enroll eligible students;
-- duplicate enrollment is impossible; and
-- enrollment history survives status changes.
-
-## Milestone 9: Training sessions
-
-Goal: schedule and maintain the meetings delivered by each training group.
-
-Delivered behavior:
-
-- session scheduling, retrieval, update, explicit completion, and cancellation;
-- session lists by group;
-- group-date validation and protection against excluding non-cancelled sessions;
-- optimistic concurrency, authorization, domain, and SQL-backed integration tests; and
-- Operational Staff-only access until account-to-Instructor linkage supports safe assigned-session views.
-
-Assigned-Instructor session views remain deferred. Milestone 9 does not add attendance, automatic completion, conflict detection, recurring schedules, or browser UI.
-
-## Milestone 10: Attendance
-
-Goal: record and correct attendance for eligible students in delivered sessions.
-
-Delivered behavior:
-
-- attendance entry and rowversion-protected correction with staff-actor metadata;
-- roster attendance by session and saved-attendance views by student and group;
-- Active-enrollment, same-group, session-state, and Africa/Casablanca timing validation; and
-- domain and SQL-backed integration tests for relationships, history, authorization, and uniqueness.
-
-Completion criteria:
-
-- authorized users can record and correct attendance;
-- invalid or duplicate attendance is rejected; and
-- cancelled sessions and historical records follow the approved rules.
-
-Missing attendance means Not Recorded rather than Absent. New entry requires a currently Active enrollment whose
-enrollment date is no later than the session date. Existing attendance remains visible and correctable after later
-enrollment, student, group, or session state changes. Instructor access remains deferred until account-to-Instructor
-linkage can enforce assigned-group access.
-
-## Milestone 11: Instructor account linking and assigned access
-
-Goal: connect Instructor-role sign-in accounts to Instructor records and safely expose assigned work.
-
-Delivered behavior:
-
-- Administrator-only creation, replacement, and removal of optional one-to-one account links;
-- session invalidation for link changes, link-clearing role changes, and linked Instructor deactivation;
-- SQL-scoped Instructor views of assigned groups, sessions, enrollment rosters, and attendance;
-- assigned-session Attendance entry and correction using the StaffUser as the audit actor; and
-- current-primary-Instructor authorization, historical access transfer, concealment, concurrency, and integration tests.
-
-Instructor accounts may sign in while unlinked or linked to an inactive Instructor, but assigned-resource endpoints
-deny access. Instructor access follows the Training Group's current `PrimaryInstructorId`; V1 does not retain
-per-session Instructor ownership.
-
-## Milestone 12: Browser interface integration
-
-Goal: provide a clear internal interface for the approved workflows.
-
-Planned deliverables:
-
-- accessible HTML forms and operational views;
-- CSS for usable desktop and responsive layouts;
-- JavaScript modules that call the API through Fetch;
-- useful loading, validation, empty, and error states; and
-- authorization-aware navigation without treating hidden controls as security.
-
-Completion criteria:
-
-- staff can complete every approved workflow through the browser;
-- server errors are presented safely and clearly; and
-- essential keyboard and accessibility checks pass.
-
-## Milestone 13: V1 hardening and release preparation
-
-Goal: make the completed V1 dependable and supportable.
-
-Planned deliverables:
-
-- full integration-test review of core workflows;
-- security and authorization review;
-- data-integrity and migration review;
-- logging and operational error handling;
-- setup, deployment, backup, and recovery documentation; and
-- final scope and acceptance review.
-
-Completion criteria:
-
-- all V1 acceptance criteria pass;
-- no known critical data-integrity or authorization defects remain;
-- deployment and recovery steps are documented and tested in the approved environment; and
-- postponed features have not entered the release accidentally.
-
-Hosting, production backup ownership, and the release approval process are deferred until this milestone. They do not block Milestone 1 or domain implementation.
-
-## After V1
-
-Postponed features must be evaluated as separate product work. They should not be added merely because a later architecture could support them. Scope, user value, business rules, security effects, and maintenance cost must be agreed first.
+V1 is implemented. The repository is maintained as a portfolio and reference implementation of a focused ASP.NET Core application, with the approved V1 workflows represented across the API, browser interface, persistence layer, and automated test suites.

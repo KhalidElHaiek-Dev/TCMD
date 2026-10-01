@@ -2,78 +2,45 @@
 
 These instructions apply to the entire TCMD repository.
 
-## Product boundary
+## Product and scope
 
-- TCMD V1 is an internal web application for one training center.
-- Treat the approved files in `docs/` as the product definition.
-- Do not add features listed as postponed in `docs/product-scope.md` unless the user explicitly changes the scope.
-- Do not invent business rules. Clearly document unresolved requirements and ask for confirmation before implementing behavior that depends on them.
-- Keep language and explanations clear enough for a junior .NET developer.
+- TCMD V1 is an implemented internal web application for one training center.
+- Treat the approved documents in `docs/` as the product definition.
+- Do not add functionality listed as outside V1 in `docs/product-scope.md` unless the user explicitly changes the scope.
+- Do not invent business rules. Document unresolved requirements and obtain confirmation before implementing behavior that depends on them.
+- Prefer the simplest maintainable design that satisfies the confirmed requirement.
 
-## Before implementation
+## Architecture
 
-- Do not create application code, a .NET solution, database files, or UI files until the user explicitly requests the technical implementation phase.
-- Before major technical work, confirm any unresolved decision that materially affects data, security, permissions, or architecture.
-- Prefer an incremental plan in which each phase produces working, testable behavior.
+- Preserve the four-project architecture: `TCMD.Api`, `TCMD.Application`, `TCMD.Domain`, and `TCMD.Infrastructure`.
+- `TCMD.Domain` must remain independent of Infrastructure, HTTP, and persistence concerns.
+- `TCMD.Application` owns use cases and abstractions and must remain independent of HTTP and EF Core.
+- `TCMD.Infrastructure` implements Application abstractions and owns EF Core, SQL Server, Identity storage, and migrations.
+- `TCMD.Api` is the composition and delivery layer for endpoints, middleware, configuration, authentication, and the browser client.
+- Do not introduce speculative infrastructure or abstraction layers without a current need.
 
-## Architecture and scope rules
+## Security and data integrity
 
-- Use the simplest maintainable design that satisfies confirmed V1 requirements.
-- The planned system is one ASP.NET Core Web API with a browser client and SQL Server persistence.
-- Do not introduce microservices, CQRS, message brokers, Redis, Docker, or speculative infrastructure in V1.
-- Do not create abstraction layers without a current use.
-- Keep domain rules, authorization, and validation enforceable on the server.
-- Do not depend on browser validation or hidden UI controls for security or data integrity.
+- Preserve server-side authentication, authorization, Instructor assignment checks, antiforgery validation, and safe `ProblemDetails` responses.
+- Preserve SQL Server `rowversion` optimistic concurrency and explicit conflict handling.
+- Enforce important validation and lifecycle rules on the server and with database constraints where practical.
+- Preserve history required by enrollments and attendance; do not replace deactivation with physical deletion without an approved retention rule.
+- Preserve exact database-name safety guards for demo seeding and database-backed tests.
+- Never commit real passwords, tokens, connection strings, personal data, or production credentials.
 
-## C# and .NET rules for future work
+## Implementation conventions
 
-- Target .NET 10 LTS and follow supported ASP.NET Core conventions.
-- Enable nullable reference types.
-- Prefer clear names and small, focused types and methods.
-- Use asynchronous APIs for I/O operations and pass cancellation tokens where useful.
-- Use dependency injection for real application dependencies, not as a reason to create unnecessary interfaces.
-- Return consistent, safe API errors. Do not expose stack traces or sensitive implementation details to clients.
-- Validate external input and enforce important rules again with database constraints when practical.
-
-## Data rules for future work
-
+- Target .NET 10 with nullable reference types enabled and follow existing ASP.NET Core and Entity Framework Core conventions.
+- Prefer clear, focused code, asynchronous I/O, useful cancellation tokens, semantic accessible HTML, and the existing native JavaScript module structure.
 - Use Entity Framework Core migrations for schema changes.
-- Do not edit a shared or deployed database schema manually.
-- Do not physically delete records that are required for enrollment or attendance history unless a confirmed retention rule permits it.
-- Protect important uniqueness and relationship rules with application behavior and database constraints where appropriate.
-- Never store passwords, tokens, connection strings, or other secrets in source control.
-- Use test data only in automated tests or explicit development seeding.
+- Keep changes focused and preserve unrelated user work.
+- Update relevant documentation when a confirmed rule or workflow changes.
 
-## Authentication and authorization
+## Verification and repository care
 
-- Deny protected operations unless the user is authenticated and authorized.
-- Enforce permissions at API boundaries and, where needed, inside business operations.
-- Test both allowed and forbidden cases for every role-sensitive workflow.
-- Do not log passwords, authentication tokens, or other sensitive credentials.
-- Do not weaken authorization to simplify UI development or testing.
-
-## Testing and verification
-
-- Add automated integration tests with each important API workflow.
-- At minimum, test successful behavior, validation failures, missing records, duplicate data, and unauthorized access where applicable.
-- Include regression tests with bug fixes when practical.
-- Run relevant tests after changes and report the exact verification performed.
-- Do not claim that a change works when it has not been verified. State any verification limitation clearly.
-
-## Frontend rules for future work
-
-- Use semantic, accessible HTML and clear labels.
-- Keep CSS and JavaScript maintainable and free of unnecessary frameworks unless the user approves a change in direction.
-- Use the Fetch API for communication with the backend.
-- Treat all displayed user-controlled data safely; do not inject it into HTML as executable markup.
-- Show useful loading, empty, validation, and error states.
-
-## Documentation and repository care
-
-- Update relevant documentation when a confirmed product rule or workflow changes.
-- Do not silently convert an unresolved product decision into an implemented assumption.
-- Preserve existing user changes and avoid unrelated rewrites.
-- Inspect the current repository state before editing.
-- Keep commits and changes focused on the requested task.
-- Do not add dependencies, tools, generated artifacts, or configuration without a clear present need.
+- Add or update automated tests for behavioral changes, including allowed and forbidden cases for role-sensitive workflows.
+- Run the relevant Domain, Integration, or Browser tests after changes and report exactly what was verified.
+- Do not claim unverified behavior works; state environmental limitations clearly.
+- Do not weaken database guards or authorization to simplify testing.
 - Do not perform destructive Git or filesystem actions without explicit authorization.
+- Do not commit or push unless the user explicitly requests it.

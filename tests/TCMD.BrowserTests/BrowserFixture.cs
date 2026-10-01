@@ -11,6 +11,11 @@ public sealed class BrowserFixture : IAsyncLifetime
 {
     public const string AdminUserName = "browser-admin";
     public const string AdminPassword = "Password1";
+#if DEBUG
+    private const string BuildConfiguration = "Debug";
+#else
+    private const string BuildConfiguration = "Release";
+#endif
     private Process? api;
     private readonly ConcurrentQueue<string> apiOutput = new();
     public string BaseUrl { get; private set; } = string.Empty;
@@ -25,11 +30,11 @@ public sealed class BrowserFixture : IAsyncLifetime
         if (!string.Equals(new SqlConnectionStringBuilder(connection).InitialCatalog, "TCMD.BrowserTests", StringComparison.Ordinal))
             throw new InvalidOperationException("Browser tests require the dedicated TCMD.BrowserTests database.");
 
-        await RunAsync("dotnet", "ef database drop --force --no-build --project src/TCMD.Infrastructure --startup-project src/TCMD.Api", root, connection);
-        await RunAsync("dotnet", "ef database update --no-build --project src/TCMD.Infrastructure --startup-project src/TCMD.Api", root, connection);
+        await RunAsync("dotnet", $"ef database drop --configuration {BuildConfiguration} --force --no-build --project src/TCMD.Infrastructure --startup-project src/TCMD.Api", root, connection);
+        await RunAsync("dotnet", $"ef database update --configuration {BuildConfiguration} --no-build --project src/TCMD.Infrastructure --startup-project src/TCMD.Api", root, connection);
         BaseUrl = $"https://127.0.0.1:{GetAvailablePort()}";
         var start = new ProcessStartInfo("dotnet",
-            $"run --no-build --no-launch-profile --project src/TCMD.Api --urls {BaseUrl}")
+            $"run --configuration {BuildConfiguration} --no-build --no-launch-profile --project src/TCMD.Api --urls {BaseUrl}")
         {
             WorkingDirectory = root, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
             Environment = { ["ASPNETCORE_ENVIRONMENT"] = "Development", ["ConnectionStrings__TCMD"] = connection,
